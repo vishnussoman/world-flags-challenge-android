@@ -1,0 +1,4 @@
+include ':app'
+rootProject.name = "world-flags-challenge"
+
+apply from: 'capacitor.settings.gradle'

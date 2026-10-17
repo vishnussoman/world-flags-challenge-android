@@ -1,0 +1,6 @@
+{
+  "name": "World Flags Challenge",
+  "description": "Master the flags of the world through fast-paced quiz battles, time rush blitz, streak survival, and an interactive world atlas.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
