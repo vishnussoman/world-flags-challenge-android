@@ -1,6 +1,6 @@
 # World Flags Challenge — Android Application
 
-**World Flags Challenge** is an educational, fast-paced standalone Android flag quiz and learning game covering **all 196 sovereign nations** of the world across 5 continents. Built with React 19, TypeScript, Tailwind CSS, and powered by **Capacitor 7** for native Android deployment.
+**World Flags Challenge** is an educational, fast-paced standalone Android flag quiz and learning game covering **all 196 sovereign nations** of the world across 5 continents. Built with React 19, TypeScript, Tailwind CSS, and powered by **Capacitor 8** for native Android deployment.
 
 ---
 
@@ -38,21 +38,16 @@ To build and run this Android project, your development machine requires:
 
 ## 🚀 Quick Start & Web Development
 
-1. Navigate into the `world-flags-challenge-android` directory:
-   ```bash
-   cd world-flags-challenge-android
-   ```
-
-2. Install all dependencies:
+1. Install all dependencies:
    ```bash
    npm install
    ```
 
-3. Launch the local web preview server:
+2. Launch the local development preview:
    ```bash
    npm run dev
    ```
-   Open `http://localhost:5173` in your browser.
+   Open `http://localhost:3000` (or `http://localhost:5173`) in your browser.
 
 ---
 
@@ -113,7 +108,7 @@ adb install -r android/app/build/outputs/apk/debug/app-debug.apk
    ```bash
    npx cap open android
    ```
-   *(Or launch Android Studio and choose **Open an Existing Project**, selecting the `world-flags-challenge-android/android` directory).*
+   *(Or launch Android Studio and choose **Open an Existing Project**, selecting the `android` folder in this repository).*
 
 2. Wait for Gradle sync to complete.
 
@@ -158,13 +153,13 @@ android/app/release/app-release.aab (or app-release.apk)
 ## 📂 Project Structure
 
 ```
-world-flags-challenge-android/
+.
 ├── android/                         # Native Android project scaffold
 │   ├── app/
 │   │   ├── build.gradle             # App Gradle config (namespace: com.worldflagschallenge.app)
 │   │   └── src/main/
 │   │       ├── AndroidManifest.xml  # Manifest with portrait lock, hardware acceleration
-│   │       ├── java/                # MainActivity.java Capacitor Bridge
+│   │       ├── java/com/worldflagschallenge/app/MainActivity.java
 │   │       └── res/                 # App strings, themes, and resources
 │   ├── build.gradle                 # Root Gradle build script
 │   ├── settings.gradle              # Subproject Gradle declarations
@@ -177,7 +172,7 @@ world-flags-challenge-android/
 │   ├── App.tsx                      # Game coordinator with Android BackButton listener
 │   ├── main.tsx                     # Entry point with Status Bar setup
 │   └── index.css                    # Tailwind CSS + safe-area insets
-├── capacitor.config.ts              # Capacitor 7 configuration (appId: com.worldflagschallenge.app)
+├── capacitor.config.ts              # Capacitor configuration (appId: com.worldflagschallenge.app)
 ├── package.json                     # Scripts and dependencies
 ├── vite.config.ts                   # Vite bundler configuration
 └── README.md                        # Documentation
@@ -185,16 +180,15 @@ world-flags-challenge-android/
 
 ---
 
-## 🌐 Pushing to a Separate GitHub Repository
+## 🌐 Linking to GitHub
 
-This folder is completely independent of the original web project. To push it to its own GitHub repository:
+This repository is already configured to be pushed to your dedicated Android repo:
+`https://github.com/vishnussoman/world-flags-challenge-android`
 
+From your terminal:
 ```bash
-cd world-flags-challenge-android
-git init
+git remote set-url origin https://github.com/vishnussoman/world-flags-challenge-android.git
 git add .
-git commit -m "Initial commit: World Flags Challenge Android Capacitor app"
-git branch -M main
-git remote add origin https://github.com/<your-username>/world-flags-challenge.git
+git commit -m "feat: complete Android Capacitor application"
 git push -u origin main
 ```

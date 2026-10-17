@@ -1,0 +1,24 @@
+{
+	"appId": "com.worldflagschallenge.app",
+	"appName": "World Flags Challenge",
+	"webDir": "dist",
+	"backgroundColor": "#020617",
+	"server": {
+		"androidScheme": "https",
+		"cleartext": false
+	},
+	"android": {
+		"allowMixedContent": false,
+		"captureInput": true,
+		"webContentsDebuggingEnabled": false
+	},
+	"plugins": {
+		"StatusBar": {
+			"style": "DARK",
+			"backgroundColor": "#020617"
+		},
+		"ScreenOrientation": {
+			"orientation": "portrait"
+		}
+	}
+}
