@@ -11,6 +11,13 @@
     font-family: var(--font-body);
     touch-action: manipulation;
     -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    -webkit-user-select: none;
+    overscroll-behavior-y: none;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
   }
 
   h1, h2, h3, h4, .font-display {
@@ -22,12 +29,7 @@
   }
 }
 
-/* Custom animations for game feel */
-@keyframes pulse-subtle {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.85; transform: scale(1.03); }
-}
-
+/* Animations */
 @keyframes shake {
   0%, 100% { transform: translateX(0); }
   20%, 60% { transform: translateX(-6px); }
@@ -35,15 +37,15 @@
 }
 
 @keyframes pop {
-  0% { transform: scale(0.9); opacity: 0; }
-  70% { transform: scale(1.05); }
+  0% { transform: scale(0.92); opacity: 0; }
+  70% { transform: scale(1.04); }
   100% { transform: scale(1); opacity: 1; }
 }
 
 .animate-pop {
-  animation: pop 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: pop 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .animate-shake {
-  animation: shake 0.35s ease-in-out;
+  animation: shake 0.32s ease-in-out;
 }

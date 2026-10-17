@@ -1,13 +1,14 @@
-// Web Audio API Synthesizer for procedural game sound effects
+import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics';
+
+// Web Audio API Synthesizer with Capacitor Haptics support for Android
 
 class SoundEngine {
   private ctx: AudioContext | null = null;
   private isMuted: boolean = false;
 
   constructor() {
-    // Check localStorage for muted state
     try {
-      this.isMuted = localStorage.getItem('world_flags_muted') === 'true';
+      this.isMuted = localStorage.getItem('exile_flags_muted') === 'true';
     } catch {
       this.isMuted = false;
     }
@@ -32,15 +33,31 @@ class SoundEngine {
   public toggleMute(): boolean {
     this.isMuted = !this.isMuted;
     try {
-      localStorage.setItem('world_flags_muted', this.isMuted ? 'true' : 'false');
+      localStorage.setItem('exile_flags_muted', this.isMuted ? 'true' : 'false');
     } catch {
-      // ignore storage error
+      // ignore
     }
     return this.isMuted;
   }
 
-  // Play gentle UI tap
+  private async triggerHaptic(type: 'light' | 'medium' | 'error' | 'success') {
+    try {
+      if (type === 'light') {
+        await Haptics.impact({ style: ImpactStyle.Light });
+      } else if (type === 'medium') {
+        await Haptics.impact({ style: ImpactStyle.Medium });
+      } else if (type === 'error') {
+        await Haptics.notification({ type: NotificationType.Error });
+      } else if (type === 'success') {
+        await Haptics.notification({ type: NotificationType.Success });
+      }
+    } catch {
+      // Haptics fallback for browser/web preview
+    }
+  }
+
   public playClick() {
+    this.triggerHaptic('light');
     if (this.isMuted) return;
     this.initCtx();
     if (!this.ctx) return;
@@ -60,22 +77,21 @@ class SoundEngine {
       osc.start();
       osc.stop(this.ctx.currentTime + 0.05);
     } catch {
-      // Audio playback safety
+      // Audio safety
     }
   }
 
-  // Play satisfying correct answer chime
   public playCorrect(streak: number = 0) {
+    this.triggerHaptic('medium');
     if (this.isMuted) return;
     this.initCtx();
     if (!this.ctx) return;
 
     try {
       const now = this.ctx.currentTime;
-      // Pitch scales slightly with streak
       const pitchShift = Math.min(streak * 25, 200);
 
-      const notes = [523.25 + pitchShift, 659.25 + pitchShift, 783.99 + pitchShift]; // C5, E5, G5 triad
+      const notes = [523.25 + pitchShift, 659.25 + pitchShift, 783.99 + pitchShift];
       notes.forEach((freq, idx) => {
         const osc = this.ctx!.createOscillator();
         const gain = this.ctx!.createGain();
@@ -92,12 +108,12 @@ class SoundEngine {
         osc.stop(now + idx * 0.05 + 0.25);
       });
     } catch {
-      // Audio playback safety
+      // Audio safety
     }
   }
 
-  // Play soft incorrect buzz
   public playIncorrect() {
+    this.triggerHaptic('error');
     if (this.isMuted) return;
     this.initCtx();
     if (!this.ctx) return;
@@ -123,15 +139,15 @@ class SoundEngine {
     }
   }
 
-  // Play celebratory streak alert (for streak >= 3, 5, 10)
   public playStreakFanfare() {
+    this.triggerHaptic('success');
     if (this.isMuted) return;
     this.initCtx();
     if (!this.ctx) return;
 
     try {
       const now = this.ctx.currentTime;
-      const notes = [523.25, 659.25, 783.99, 1046.5]; // C5, E5, G5, C6
+      const notes = [523.25, 659.25, 783.99, 1046.5];
       notes.forEach((freq, idx) => {
         const osc = this.ctx!.createOscillator();
         const gain = this.ctx!.createGain();
@@ -151,7 +167,6 @@ class SoundEngine {
     }
   }
 
-  // Play clock tick for blitz urgency
   public playTick(urgent: boolean = false) {
     if (this.isMuted) return;
     this.initCtx();
@@ -175,8 +190,8 @@ class SoundEngine {
     }
   }
 
-  // Play victory chime
   public playVictory() {
+    this.triggerHaptic('success');
     if (this.isMuted) return;
     this.initCtx();
     if (!this.ctx) return;
@@ -184,10 +199,10 @@ class SoundEngine {
     try {
       const now = this.ctx.currentTime;
       const chords = [
-        [440, 554.37, 659.25], // A maj
-        [493.88, 622.25, 739.99], // B maj
-        [554.37, 698.46, 830.61], // C# maj
-        [659.25, 830.61, 987.77], // E maj
+        [440, 554.37, 659.25],
+        [493.88, 622.25, 739.99],
+        [554.37, 698.46, 830.61],
+        [659.25, 830.61, 987.77],
       ];
 
       chords.forEach((chord, step) => {
@@ -211,15 +226,15 @@ class SoundEngine {
     }
   }
 
-  // Play game over sound
   public playGameOver() {
+    this.triggerHaptic('error');
     if (this.isMuted) return;
     this.initCtx();
     if (!this.ctx) return;
 
     try {
       const now = this.ctx.currentTime;
-      const notes = [392.00, 349.23, 311.13, 261.63]; // G4, F4, Eb4, C4
+      const notes = [392.00, 349.23, 311.13, 261.63];
       notes.forEach((freq, idx) => {
         const osc = this.ctx!.createOscillator();
         const gain = this.ctx!.createGain();

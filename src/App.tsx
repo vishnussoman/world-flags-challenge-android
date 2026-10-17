@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { App as CapacitorApp } from '@capacitor/app';
 import { TitleScreen } from './components/TitleScreen';
 import { HeaderHUD } from './components/HeaderHUD';
 import { QuizPlayfield } from './components/QuizPlayfield';
@@ -23,7 +24,7 @@ export default function App() {
   // High Scores & Mastered Flags
   const [highScores, setHighScores] = useState<HighScores>(() => {
     try {
-      const saved = localStorage.getItem('world_flags_highscores');
+      const saved = localStorage.getItem('exile_flags_highscores');
       if (saved) return JSON.parse(saved);
     } catch {
       // storage fallback
@@ -54,7 +55,7 @@ export default function App() {
   const [isNewHighScore, setIsNewHighScore] = useState<boolean>(false);
 
   // Inspected country from Results modal
-  const [inspectedCountry, setInspectedCountry] = useState<Country | null>(null);
+  const [, setInspectedCountry] = useState<Country | null>(null);
 
   // Blitz timer ref
   const blitzTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -78,14 +79,13 @@ export default function App() {
           isNewRecord = true;
         }
 
-        // Add newly learned flags
         const setOfCodes = new Set([...prev.flagsLearned, ...newLearnedCodes]);
         updated.flagsLearned = Array.from(setOfCodes);
 
         setIsNewHighScore(isNewRecord);
 
         try {
-          localStorage.setItem('world_flags_highscores', JSON.stringify(updated));
+          localStorage.setItem('exile_flags_highscores', JSON.stringify(updated));
         } catch {
           // ignore
         }
@@ -98,7 +98,6 @@ export default function App() {
 
   // Generate question helper
   const createQuestion = useCallback((targetCountry: Country, allCountries: Country[]): QuizQuestion => {
-    // Pick 3 distractors from same continent or globally
     const sameContinent = allCountries.filter(
       (c) => c.code !== targetCountry.code && c.continent === targetCountry.continent
     );
@@ -112,7 +111,6 @@ export default function App() {
       distractors.push(shuffledPool[i]);
     }
 
-    // Combine and shuffle 4 options
     const options = [targetCountry, ...distractors].sort(() => 0.5 - Math.random());
     const correctIndex = options.findIndex((c) => c.code === targetCountry.code);
 
@@ -134,17 +132,14 @@ export default function App() {
       setIsNewHighScore(false);
       setInspectedCountry(null);
 
-      // Filter available countries based on continent
       const pool = COUNTRIES.filter((c) => continent === 'All' || c.continent === continent);
       const shuffled = [...pool].sort(() => 0.5 - Math.random());
 
       let sessionCountries = shuffled;
       if (specificCountry) {
-        // Practice mode starts with the requested country
         sessionCountries = [specificCountry, ...shuffled.filter((c) => c.code !== specificCountry.code)];
       }
 
-      // Generate question list
       const generatedQuestions = sessionCountries.map((c) => createQuestion(c, pool));
 
       setQuestions(generatedQuestions);
@@ -167,38 +162,11 @@ export default function App() {
     [createQuestion]
   );
 
-  // Blitz mode countdown timer
-  useEffect(() => {
-    if (appState === 'PLAYING' && currentMode === 'blitz') {
-      blitzTimerRef.current = setInterval(() => {
-        setStats((prev) => {
-          if (prev.timeRemaining === undefined || prev.timeRemaining <= 1) {
-            clearInterval(blitzTimerRef.current!);
-            handleGameOver();
-            return { ...prev, timeRemaining: 0 };
-          }
-
-          // Sound tick on last 10 seconds
-          if (prev.timeRemaining <= 10) {
-            sound.playTick(true);
-          }
-
-          return { ...prev, timeRemaining: prev.timeRemaining - 1 };
-        });
-      }, 1000);
-
-      return () => {
-        if (blitzTimerRef.current) clearInterval(blitzTimerRef.current);
-      };
-    }
-  }, [appState, currentMode]);
-
   // Handle Game Over / Round Summary
   const handleGameOver = useCallback(() => {
     if (blitzTimerRef.current) clearInterval(blitzTimerRef.current);
 
     setStats((currentStats) => {
-      // Collect codes answered correctly
       const learned = currentStats.history.filter((h) => h.isCorrect).map((h) => h.country.code);
       updateHighScores(currentMode, currentStats.score, learned);
 
@@ -214,6 +182,31 @@ export default function App() {
     setAppState('ROUND_SUMMARY');
   }, [currentMode, updateHighScores]);
 
+  // Blitz mode countdown timer
+  useEffect(() => {
+    if (appState === 'PLAYING' && currentMode === 'blitz') {
+      blitzTimerRef.current = setInterval(() => {
+        setStats((prev) => {
+          if (prev.timeRemaining === undefined || prev.timeRemaining <= 1) {
+            clearInterval(blitzTimerRef.current!);
+            handleGameOver();
+            return { ...prev, timeRemaining: 0 };
+          }
+
+          if (prev.timeRemaining <= 10) {
+            sound.playTick(true);
+          }
+
+          return { ...prev, timeRemaining: prev.timeRemaining - 1 };
+        });
+      }, 1000);
+
+      return () => {
+        if (blitzTimerRef.current) clearInterval(blitzTimerRef.current);
+      };
+    }
+  }, [appState, currentMode, handleGameOver]);
+
   // Handle user's answer selection
   const handleAnswer = useCallback(
     (selectedOption: Country) => {
@@ -227,7 +220,6 @@ export default function App() {
         const nextStreak = isCorrect ? prev.currentStreak + 1 : 0;
         const nextMaxStreak = Math.max(prev.maxStreak, nextStreak);
 
-        // Sound feedback
         if (isCorrect) {
           if (nextStreak === 3 || nextStreak === 5 || nextStreak === 10) {
             sound.playStreakFanfare();
@@ -238,7 +230,6 @@ export default function App() {
           sound.playIncorrect();
         }
 
-        // Calculate score with streak multiplier and speed bonus
         let pointsEarned = 0;
         if (isCorrect) {
           const basePoints = 100;
@@ -252,7 +243,6 @@ export default function App() {
             ? Math.max(0, (prev.livesRemaining || 3) - 1)
             : prev.livesRemaining;
 
-        // Blitz bonus time for streak
         let nextTime = prev.timeRemaining;
         if (currentMode === 'blitz' && isCorrect && nextStreak >= 3) {
           nextTime = Math.min(BLITZ_DURATION + 15, (nextTime || 0) + 2);
@@ -285,21 +275,17 @@ export default function App() {
   const handleNextQuestion = useCallback(() => {
     sound.playClick();
 
-    // Check survival lives
     if (currentMode === 'survival' && stats.livesRemaining !== undefined && stats.livesRemaining <= 0) {
       handleGameOver();
       return;
     }
 
-    // Check classic mode completion
     if (currentMode === 'classic' && currentQuestionIndex >= TOTAL_CLASSIC_QUESTIONS - 1) {
       handleGameOver();
       return;
     }
 
-    // Check if questions ran out
     if (currentQuestionIndex + 1 >= questions.length) {
-      // Loop or finish
       handleGameOver();
       return;
     }
@@ -308,7 +294,7 @@ export default function App() {
     questionStartTimeRef.current = Date.now();
   }, [currentMode, currentQuestionIndex, questions.length, stats.livesRemaining, handleGameOver]);
 
-  // Pause toggle (also via Esc key)
+  // Pause toggle
   const togglePause = useCallback(() => {
     if (appState === 'PLAYING') {
       sound.playClick();
@@ -319,22 +305,27 @@ export default function App() {
     }
   }, [appState]);
 
-  // Global keydown for pause
+  // Android Hardware Back Button Handler via Capacitor App
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        if (appState === 'PLAYING') {
-          togglePause();
-        } else if (appState === 'PAUSED') {
-          togglePause();
-        } else if (appState === 'ATLAS') {
-          setAppState('TITLE_MENU');
+    const backListener = CapacitorApp.addListener('backButton', () => {
+      setAppState((current) => {
+        if (current === 'PLAYING') {
+          sound.playClick();
+          return 'PAUSED';
+        } else if (current === 'PAUSED' || current === 'ROUND_SUMMARY' || current === 'ATLAS') {
+          sound.playClick();
+          return 'TITLE_MENU';
+        } else if (current === 'TITLE_MENU') {
+          CapacitorApp.exitApp();
         }
-      }
+        return current;
+      });
+    });
+
+    return () => {
+      backListener.then((listener) => listener.remove());
     };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [appState, togglePause]);
+  }, []);
 
   const handleToggleMute = () => {
     const nextMuted = sound.toggleMute();
@@ -384,7 +375,7 @@ export default function App() {
           </div>
 
           <div className="w-full text-center py-2 text-[11px] text-slate-600 font-mono">
-            World Flags Challenge · {currentContinent} Territory
+            World Flags Challenge · {currentContinent} Region
           </div>
         </div>
       )}

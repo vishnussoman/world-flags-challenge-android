@@ -4,7 +4,6 @@ const config: CapacitorConfig = {
   appId: 'com.worldflagschallenge.app',
   appName: 'World Flags Challenge',
   webDir: 'dist',
-  bundledWebRuntime: false,
   backgroundColor: '#020617',
   server: {
     androidScheme: 'https',
