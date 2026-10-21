@@ -150,6 +150,35 @@ android/app/release/app-release.aab (or app-release.apk)
 
 ---
 
+## 💰 Google AdMob Monetization Setup
+
+The project has **Google Mobile Ads (AdMob)** pre-configured via `@capacitor-community/admob` using Google's official test ad units:
+
+- **Rewarded Video Ads**: Allows players in *Streak Survival* mode to watch an ad to revive with +1 heart and continue their game.
+- **Interstitial Ads**: Displayed cleanly on the *Round Summary* screen every 3 completed rounds (never interrupting active gameplay).
+- **Banner Ads**: Built-in support for bottom banners.
+
+### To Switch from Test Ads to Live AdMob Ads for Google Play:
+1. Create a free account at [Google AdMob](https://admob.google.com).
+2. Create an App named **World Flags Challenge** (Android).
+3. Copy your **AdMob App ID** and paste it into `android/app/src/main/AndroidManifest.xml`:
+   ```xml
+   <meta-data
+       android:name="com.google.android.gms.ads.APPLICATION_ID"
+       android:value="ca-app-pub-YOUR_ADMOB_APP_ID"/>
+   ```
+4. Create your Ad Units (Banner, Interstitial, Rewarded) and paste their IDs into `src/utils/admob.ts`:
+   ```typescript
+   export const AD_CONFIG = {
+     bannerAdId: 'ca-app-pub-YOUR_BANNER_UNIT_ID',
+     interstitialAdId: 'ca-app-pub-YOUR_INTERSTITIAL_UNIT_ID',
+     rewardedAdId: 'ca-app-pub-YOUR_REWARDED_UNIT_ID',
+   };
+   ```
+5. In the Google Play Console under **Policy > App content > Ads**, mark **"Yes, my app contains ads"**.
+
+---
+
 ## 📂 Project Structure
 
 ```

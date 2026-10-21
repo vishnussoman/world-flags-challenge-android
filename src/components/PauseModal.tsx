@@ -55,10 +55,6 @@ export const PauseModal: React.FC<PauseModalProps> = ({
             <span>Exit to Main Menu</span>
           </button>
         </div>
-
-        <div className="mt-6 text-xs text-slate-500">
-          Press <kbd className="px-1.5 py-0.5 bg-slate-800 border border-slate-700 rounded text-slate-300 font-mono">Esc</kbd> to resume
-        </div>
       </div>
     </div>
   );

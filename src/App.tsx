@@ -9,6 +9,7 @@ import { StudyAtlas } from './components/StudyAtlas';
 import { COUNTRIES } from './data/countries';
 import { GameMode, Continent, Country, QuizQuestion, GameStats, HighScores } from './types/flags';
 import { sound } from './utils/audio';
+import { adManager } from './utils/admob';
 
 type AppState = 'TITLE_MENU' | 'PLAYING' | 'PAUSED' | 'ROUND_SUMMARY' | 'ATLAS';
 
@@ -180,6 +181,9 @@ export default function App() {
     });
 
     setAppState('ROUND_SUMMARY');
+
+    // Trigger interstitial ad every 3 completed rounds
+    adManager.recordRoundAndShowInterstitial(3);
   }, [currentMode, updateHighScores]);
 
   // Blitz mode countdown timer
@@ -327,6 +331,29 @@ export default function App() {
     };
   }, []);
 
+  // Initialize AdMob on mount
+  useEffect(() => {
+    adManager.initialize();
+  }, []);
+
+  // Handle Revive via Rewarded Video Ad (Survival Mode)
+  const handleReviveSurvival = useCallback(async (): Promise<boolean> => {
+    const earnedReward = await adManager.showRewardedAd();
+    if (earnedReward) {
+      sound.playStreakFanfare();
+      setStats((prev) => ({
+        ...prev,
+        livesRemaining: 1,
+      }));
+      if (currentQuestionIndex + 1 < questions.length) {
+        setCurrentQuestionIndex((prev) => prev + 1);
+      }
+      setAppState('PLAYING');
+      return true;
+    }
+    return false;
+  }, [currentQuestionIndex, questions.length]);
+
   const handleToggleMute = () => {
     const nextMuted = sound.toggleMute();
     setIsMuted(nextMuted);
@@ -409,6 +436,7 @@ export default function App() {
             setInspectedCountry(country);
             setAppState('ATLAS');
           }}
+          onRevive={handleReviveSurvival}
         />
       )}
 

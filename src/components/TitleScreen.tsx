@@ -249,10 +249,10 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
         </div>
       </div>
 
-      {/* Flat Control Hint Line */}
+      {/* Clean Minimal Status Line */}
       <div className="relative z-10 w-full max-w-md mx-auto text-center">
-        <p className="text-xs text-slate-500 font-mono">
-          Enter or Space Start · 1-4 Select · Esc Pause
+        <p className="text-xs text-slate-500 font-medium">
+          196 Sovereign Nations · 5 Continents · Touch-Optimized
         </p>
       </div>
     </div>

@@ -95,7 +95,7 @@ export const QuizPlayfield: React.FC<QuizPlayfieldProps> = ({
           let btnStyle = 'bg-slate-900/90 hover:bg-slate-800/90 border-slate-700/80 text-slate-200';
           let indicator = (
             <span className="w-6 h-6 rounded-md bg-slate-800 text-slate-400 font-mono text-xs font-bold flex items-center justify-center border border-slate-700">
-              {index + 1}
+              {['A', 'B', 'C', 'D'][index]}
             </span>
           );
 
@@ -176,15 +176,6 @@ export const QuizPlayfield: React.FC<QuizPlayfieldProps> = ({
           </div>
         </div>
       )}
-
-      {/* Control Hint Line */}
-      <div className="text-xs text-slate-500 font-mono flex items-center gap-2 text-center">
-        <span>Keys <kbd className="px-1 py-0.5 bg-slate-800 border border-slate-700 rounded text-slate-300">1</kbd>-<kbd className="px-1 py-0.5 bg-slate-800 border border-slate-700 rounded text-slate-300">4</kbd> Choose</span>
-        <span aria-hidden="true">·</span>
-        <span><kbd className="px-1.5 py-0.5 bg-slate-800 border border-slate-700 rounded text-slate-300">Space</kbd> Continue</span>
-        <span aria-hidden="true">·</span>
-        <span><kbd className="px-1 py-0.5 bg-slate-800 border border-slate-700 rounded text-slate-300">Esc</kbd> Pause</span>
-      </div>
     </div>
   );
 };

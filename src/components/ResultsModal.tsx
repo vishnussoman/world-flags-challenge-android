@@ -1,6 +1,6 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import confetti from 'canvas-confetti';
-import { RotateCcw, Home, Award, Zap, CheckCircle2, XCircle, ChevronRight, BookOpen } from 'lucide-react';
+import { RotateCcw, Home, Award, Zap, CheckCircle2, XCircle, ChevronRight, BookOpen, Film, Heart } from 'lucide-react';
 import { GameMode, GameStats, Country } from '../types/flags';
 import { FlagSvg } from './FlagSvg';
 
@@ -11,6 +11,7 @@ interface ResultsModalProps {
   onRestart: () => void;
   onQuitToMenu: () => void;
   onInspectCountry: (country: Country) => void;
+  onRevive?: () => Promise<boolean>;
 }
 
 export const ResultsModal: React.FC<ResultsModalProps> = ({
@@ -20,7 +21,10 @@ export const ResultsModal: React.FC<ResultsModalProps> = ({
   onRestart,
   onQuitToMenu,
   onInspectCountry,
+  onRevive,
 }) => {
+  const [isWatchingAd, setIsWatchingAd] = useState(false);
+  const [hasRevived, setHasRevived] = useState(false);
   const accuracy = stats.totalAnswered > 0 ? Math.round((stats.correctCount / stats.totalAnswered) * 100) : 0;
 
   useEffect(() => {
@@ -144,6 +148,28 @@ export const ResultsModal: React.FC<ResultsModalProps> = ({
             ))}
           </div>
         </div>
+
+        {/* Rewarded Ad Revive Option (Survival Mode) */}
+        {mode === 'survival' && onRevive && !hasRevived && (
+          <button
+            onClick={async () => {
+              if (isWatchingAd) return;
+              setIsWatchingAd(true);
+              try {
+                const ok = await onRevive();
+                if (ok) setHasRevived(true);
+              } finally {
+                setIsWatchingAd(false);
+              }
+            }}
+            disabled={isWatchingAd}
+            className="w-full mb-3 py-3 px-4 bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 hover:from-amber-400 hover:to-amber-300 text-slate-950 font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-amber-950/40 transition-all active:scale-98 cursor-pointer disabled:opacity-50"
+          >
+            <Film className="w-4 h-4 text-slate-950" />
+            <Heart className="w-4 h-4 text-rose-600 fill-rose-600" />
+            <span>{isWatchingAd ? 'Loading Ad...' : 'Watch Ad to Revive (+1 Life)'}</span>
+          </button>
+        )}
 
         {/* Actions */}
         <div className="grid grid-cols-2 gap-3">

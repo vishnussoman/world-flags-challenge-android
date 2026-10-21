@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Flagpole -->
+    <path
+        android:fillColor="#94a3b8"
+        android:pathData="M38,26 h4 v56 h-4 z" />
+    <path
+        android:fillColor="#f59e0b"
+        android:pathData="M36,24 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0 z" />
+    <!-- Fluttering Tricolor Flag -->
+    <path
+        android:fillColor="#10b981"
+        android:pathData="M42,28 c10,-4 18,4 28,0 c0,10 0,20 0,24 c-10,4 -18,-4 -28,0 z" />
+    <!-- White center star / emblem on flag -->
+    <path
+        android:fillColor="#ffffff"
+        android:pathData="M56,36 l2,5 l5,0 l-4,3 l2,5 l-5,-3 l-5,3 l2,-5 l-4,-3 l5,0 z" />
+</vector>

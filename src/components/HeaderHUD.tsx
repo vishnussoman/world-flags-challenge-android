@@ -100,7 +100,7 @@ export const HeaderHUD: React.FC<HeaderHUDProps> = ({
 
         <button
           onClick={onPause}
-          title="Pause Game (Esc)"
+          title="Pause Game"
           className="p-2 rounded-lg bg-slate-900/80 hover:bg-slate-800 border border-slate-700/70 text-slate-300 hover:text-white transition-colors cursor-pointer"
           aria-label="Pause Game"
         >
