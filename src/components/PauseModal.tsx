@@ -17,15 +17,21 @@ export const PauseModal: React.FC<PauseModalProps> = ({
   onToggleMute,
 }) => {
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="w-full max-w-sm bg-slate-900 border border-slate-700 rounded-2xl p-6 shadow-2xl animate-pop text-center">
-        <h2 className="text-2xl font-bold font-display tracking-tight text-white mb-2">Game Paused</h2>
-        <p className="text-sm text-slate-400 mb-6">Take a breath or resume when you're ready.</p>
+    <div
+      onClick={onResume}
+      className="fixed inset-0 z-50 bg-slate-950/90 flex items-center justify-center p-4"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl animate-pop text-center"
+      >
+        <h2 className="text-2xl font-bold font-display tracking-tight text-white mb-1.5">Game Paused</h2>
+        <p className="text-sm text-slate-400 mb-6">Take a breather or resume when ready.</p>
 
-        <div className="space-y-3">
+        <div className="space-y-2.5">
           <button
             onClick={onResume}
-            className="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-emerald-950/40 transition-all active:scale-98 cursor-pointer"
+            className="w-full min-h-[48px] py-3 px-4 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-emerald-950/40 transition-all duration-150 active:scale-[0.98] cursor-pointer"
           >
             <Play className="w-4 h-4 fill-white" />
             <span>Resume Game</span>
@@ -33,7 +39,7 @@ export const PauseModal: React.FC<PauseModalProps> = ({
 
           <button
             onClick={onRestart}
-            className="w-full py-2.5 px-4 bg-slate-800 hover:bg-slate-700 border border-slate-700/80 text-slate-200 font-medium rounded-xl flex items-center justify-center gap-2 transition-all active:scale-98 cursor-pointer"
+            className="w-full min-h-[48px] py-3 px-4 bg-slate-800 hover:bg-slate-700 border border-slate-700/80 text-slate-200 font-medium rounded-xl flex items-center justify-center gap-2 transition-all duration-150 active:scale-[0.98] cursor-pointer"
           >
             <RotateCcw className="w-4 h-4" />
             <span>Restart Challenge</span>
@@ -41,7 +47,7 @@ export const PauseModal: React.FC<PauseModalProps> = ({
 
           <button
             onClick={onToggleMute}
-            className="w-full py-2.5 px-4 bg-slate-800 hover:bg-slate-700 border border-slate-700/80 text-slate-200 font-medium rounded-xl flex items-center justify-center gap-2 transition-all active:scale-98 cursor-pointer"
+            className="w-full min-h-[48px] py-3 px-4 bg-slate-800 hover:bg-slate-700 border border-slate-700/80 text-slate-200 font-medium rounded-xl flex items-center justify-center gap-2 transition-all duration-150 active:scale-[0.98] cursor-pointer"
           >
             {isMuted ? <VolumeX className="w-4 h-4 text-rose-400" /> : <Volume2 className="w-4 h-4 text-emerald-400" />}
             <span>Sound Effects: {isMuted ? 'Off' : 'On'}</span>
@@ -49,7 +55,7 @@ export const PauseModal: React.FC<PauseModalProps> = ({
 
           <button
             onClick={onQuitToMenu}
-            className="w-full py-2.5 px-4 bg-transparent hover:bg-rose-500/10 text-rose-400 hover:text-rose-300 font-medium rounded-xl flex items-center justify-center gap-2 transition-colors cursor-pointer"
+            className="w-full min-h-[48px] py-3 px-4 bg-transparent hover:bg-rose-500/10 text-rose-400 hover:text-rose-300 font-medium rounded-xl flex items-center justify-center gap-2 transition-colors cursor-pointer"
           >
             <Home className="w-4 h-4" />
             <span>Exit to Main Menu</span>

@@ -1,0 +1,70 @@
+name: Build Android APK & Play Store Bundle
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch: # Allows manual click to trigger build from GitHub website
+
+jobs:
+  build:
+    name: Build Android APK & Bundle (.aab)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Java JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Build Web Production Assets
+        run: npm run build
+
+      - name: Synchronize Native Android Capacitor
+        run: npx cap sync android
+
+      - name: Make Gradlew Executable
+        run: chmod +x android/gradlew
+
+      # 1. Build Debug APK (For direct testing on physical Android devices)
+      - name: Build Debug APK
+        run: |
+          cd android
+          ./gradlew assembleDebug --stacktrace
+
+      # 2. Build Android App Bundle (For Google Play Store upload)
+      - name: Build Release Bundle (.aab)
+        run: |
+          cd android
+          ./gradlew bundleRelease --stacktrace
+
+      # Upload Debug APK artifact
+      - name: Upload Debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: world-flags-challenge-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 14
+
+      # Upload Release AAB Bundle artifact
+      - name: Upload Google Play Bundle (.aab)
+        uses: actions/upload-artifact@v4
+        with:
+          name: world-flags-challenge-playstore-aab
+          path: android/app/build/outputs/bundle/release/*.aab
+          retention-days: 14

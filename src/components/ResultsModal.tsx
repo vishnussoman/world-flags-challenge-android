@@ -55,14 +55,14 @@ export const ResultsModal: React.FC<ResultsModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
-      <div className="w-full max-w-lg bg-slate-900 border border-slate-700/80 rounded-2xl p-6 shadow-2xl animate-pop text-slate-100 my-8">
+    <div className="fixed inset-0 z-50 bg-slate-950 flex items-start sm:items-center justify-center p-4 overflow-y-auto">
+      <div className="w-full max-w-lg bg-slate-900 border border-slate-700/80 rounded-2xl p-6 shadow-2xl animate-pop text-slate-100 my-auto">
         {/* Header */}
         <div className="text-center mb-6">
           {isNewHighScore && (
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-bold rounded-full mb-3 uppercase tracking-wider">
+            <div className="inline-flex items-center gap-1.5 text-amber-400 text-xs font-bold mb-2 tracking-wide">
               <Award className="w-4 h-4 text-amber-400" />
-              New Personal Best!
+              <span>New Personal Best</span>
             </div>
           )}
           <h2 className="text-2xl md:text-3xl font-extrabold font-display tracking-tight text-white mb-1">
@@ -111,12 +111,12 @@ export const ResultsModal: React.FC<ResultsModalProps> = ({
             <span className="text-xs text-slate-500">Tap a country to view dossier</span>
           </div>
 
-          <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1 divide-y divide-slate-800/40">
+          <div className="max-h-52 overflow-y-auto space-y-1.5 pr-1">
             {stats.history.map((item, index) => (
               <button
                 key={index}
                 onClick={() => onInspectCountry(item.country)}
-                className="w-full flex items-center justify-between p-2 rounded-lg bg-slate-950/40 hover:bg-slate-800/60 transition-colors text-left group cursor-pointer"
+                className="w-full min-h-[52px] flex items-center justify-between px-3 py-2 rounded-xl bg-slate-950/60 hover:bg-slate-800/70 border border-slate-800/60 transition-colors text-left group cursor-pointer active:scale-[0.99]"
               >
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-6.5 shrink-0">
@@ -171,11 +171,11 @@ export const ResultsModal: React.FC<ResultsModalProps> = ({
           </button>
         )}
 
-        {/* Actions */}
+        {/* Actions (>=48px touch height) */}
         <div className="grid grid-cols-2 gap-3">
           <button
             onClick={onRestart}
-            className="py-3 px-4 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-emerald-950/40 transition-all active:scale-98 cursor-pointer"
+            className="min-h-[48px] py-3 px-4 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-emerald-950/40 transition-all duration-150 active:scale-[0.98] cursor-pointer"
           >
             <RotateCcw className="w-4 h-4" />
             <span>Play Again</span>
@@ -183,7 +183,7 @@ export const ResultsModal: React.FC<ResultsModalProps> = ({
 
           <button
             onClick={onQuitToMenu}
-            className="py-3 px-4 bg-slate-800 hover:bg-slate-700 border border-slate-700/80 text-slate-200 font-semibold rounded-xl flex items-center justify-center gap-2 transition-all active:scale-98 cursor-pointer"
+            className="min-h-[48px] py-3 px-4 bg-slate-800 hover:bg-slate-700 border border-slate-700/80 text-slate-200 font-semibold rounded-xl flex items-center justify-center gap-2 transition-all duration-150 active:scale-[0.98] cursor-pointer"
           >
             <Home className="w-4 h-4" />
             <span>Main Menu</span>

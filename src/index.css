@@ -7,6 +7,12 @@
     --font-mono: 'JetBrains Mono', monospace;
   }
 
+  html,
+  body {
+    background-color: #020617;
+    color-scheme: dark;
+  }
+
   body {
     font-family: var(--font-body);
     touch-action: manipulation;
@@ -48,4 +54,20 @@
 
 .animate-shake {
   animation: shake 0.32s ease-in-out;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-pop,
+  .animate-shake {
+    animation: none;
+  }
 }

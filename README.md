@@ -154,28 +154,23 @@ android/app/release/app-release.aab (or app-release.apk)
 
 The project has **Google Mobile Ads (AdMob)** pre-configured via `@capacitor-community/admob` using Google's official test ad units:
 
-- **Rewarded Video Ads**: Allows players in *Streak Survival* mode to watch an ad to revive with +1 heart and continue their game.
-- **Interstitial Ads**: Displayed cleanly on the *Round Summary* screen every 3 completed rounds (never interrupting active gameplay).
-- **Banner Ads**: Built-in support for bottom banners.
+- **Adaptive Banner Ads**: Shown automatically at the bottom of the **Title Screen** and **Flag Atlas** (hidden during active gameplay so buttons are never obstructed).
+- **Interstitial Ads**: Preloaded in the background and displayed cleanly on the **Round Summary** screen every **2 completed rounds** (`INTERSTITIAL_FREQUENCY = 2`).
+- **Rewarded Video Ads**: Preloaded in the background so players in *Streak Survival* mode can watch an ad to revive with +1 heart.
 
 ### To Switch from Test Ads to Live AdMob Ads for Google Play:
-1. Create a free account at [Google AdMob](https://admob.google.com).
-2. Create an App named **World Flags Challenge** (Android).
-3. Copy your **AdMob App ID** and paste it into `android/app/src/main/AndroidManifest.xml`:
+1. Create a free account at [Google AdMob](https://admob.google.com) and add **World Flags Challenge** (Android).
+2. Paste your **AdMob App ID** into `android/app/src/main/AndroidManifest.xml`:
    ```xml
    <meta-data
        android:name="com.google.android.gms.ads.APPLICATION_ID"
        android:value="ca-app-pub-YOUR_ADMOB_APP_ID"/>
    ```
-4. Create your Ad Units (Banner, Interstitial, Rewarded) and paste their IDs into `src/utils/admob.ts`:
+3. Open `src/utils/admob.ts`, paste your live Ad Unit IDs into `LIVE_AD_IDS`, and flip the single-line toggle at the top of the file:
    ```typescript
-   export const AD_CONFIG = {
-     bannerAdId: 'ca-app-pub-YOUR_BANNER_UNIT_ID',
-     interstitialAdId: 'ca-app-pub-YOUR_INTERSTITIAL_UNIT_ID',
-     rewardedAdId: 'ca-app-pub-YOUR_REWARDED_UNIT_ID',
-   };
+   export const IS_PRODUCTION_ADS = true;
    ```
-5. In the Google Play Console under **Policy > App content > Ads**, mark **"Yes, my app contains ads"**.
+4. In the Google Play Console under **Policy > App content > Ads**, mark **"Yes, my app contains ads"**.
 
 ---
 

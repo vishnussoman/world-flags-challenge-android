@@ -9,7 +9,7 @@ import { StudyAtlas } from './components/StudyAtlas';
 import { COUNTRIES } from './data/countries';
 import { GameMode, Continent, Country, QuizQuestion, GameStats, HighScores } from './types/flags';
 import { sound } from './utils/audio';
-import { adManager } from './utils/admob';
+import { adManager, INTERSTITIAL_FREQUENCY } from './utils/admob';
 
 type AppState = 'TITLE_MENU' | 'PLAYING' | 'PAUSED' | 'ROUND_SUMMARY' | 'ATLAS';
 
@@ -56,11 +56,13 @@ export default function App() {
   const [isNewHighScore, setIsNewHighScore] = useState<boolean>(false);
 
   // Inspected country from Results modal
-  const [, setInspectedCountry] = useState<Country | null>(null);
+  const [inspectedCountry, setInspectedCountry] = useState<Country | null>(null);
 
-  // Blitz timer ref
+  // Blitz timer & latest stats refs
   const blitzTimerRef = useRef<NodeJS.Timeout | null>(null);
   const questionStartTimeRef = useRef<number>(Date.now());
+  const statsRef = useRef<GameStats>(stats);
+  statsRef.current = stats;
 
   // Save high scores helper
   const updateHighScores = useCallback(
@@ -167,23 +169,22 @@ export default function App() {
   const handleGameOver = useCallback(() => {
     if (blitzTimerRef.current) clearInterval(blitzTimerRef.current);
 
-    setStats((currentStats) => {
-      const learned = currentStats.history.filter((h) => h.isCorrect).map((h) => h.country.code);
-      updateHighScores(currentMode, currentStats.score, learned);
+    const currentStats = statsRef.current;
+    const learned = currentStats.history.filter((h) => h.isCorrect).map((h) => h.country.code);
+    updateHighScores(currentMode, currentStats.score, learned);
 
-      if (currentStats.correctCount >= 10 || currentStats.score > 1000) {
-        sound.playVictory();
-      } else {
-        sound.playGameOver();
-      }
-
-      return currentStats;
-    });
+    if (currentStats.correctCount >= 10 || currentStats.score > 1000) {
+      sound.playVictory();
+    } else {
+      sound.playGameOver();
+    }
 
     setAppState('ROUND_SUMMARY');
 
-    // Trigger interstitial ad every 3 completed rounds
-    adManager.recordRoundAndShowInterstitial(3);
+    // Show preloaded interstitial ad every N completed rounds (after summary paints)
+    setTimeout(() => {
+      void adManager.recordRoundAndShowInterstitial(INTERSTITIAL_FREQUENCY);
+    }, 150);
   }, [currentMode, updateHighScores]);
 
   // Blitz mode countdown timer
@@ -336,6 +337,15 @@ export default function App() {
     adManager.initialize();
   }, []);
 
+  // Show bottom banner ad on Title Screen & Flag Atlas; hide during active gameplay & modals
+  useEffect(() => {
+    if (appState === 'TITLE_MENU' || appState === 'ATLAS') {
+      void adManager.showBanner();
+    } else {
+      void adManager.hideBanner();
+    }
+  }, [appState]);
+
   // Handle Revive via Rewarded Video Ad (Survival Mode)
   const handleReviveSurvival = useCallback(async (): Promise<boolean> => {
     const earnedReward = await adManager.showRewardedAd();
@@ -377,7 +387,7 @@ export default function App() {
 
       {/* Active Playing View */}
       {appState === 'PLAYING' && questions[currentQuestionIndex] && (
-        <div className="relative min-h-screen w-full flex flex-col justify-between py-2 md:py-4">
+        <div className="relative min-h-screen w-full flex flex-col justify-between pb-4">
           <HeaderHUD
             mode={currentMode}
             score={stats.score}
@@ -398,11 +408,16 @@ export default function App() {
               onAnswer={handleAnswer}
               onNext={handleNextQuestion}
               isBlitz={currentMode === 'blitz'}
+              isFinalStep={
+                (currentMode === 'survival' && (stats.livesRemaining ?? 3) <= 0) ||
+                (currentMode === 'classic' && currentQuestionIndex >= TOTAL_CLASSIC_QUESTIONS - 1) ||
+                currentQuestionIndex + 1 >= questions.length
+              }
             />
           </div>
 
-          <div className="w-full text-center py-2 text-[11px] text-slate-600 font-mono">
-            World Flags Challenge · {currentContinent} Region
+          <div className="w-full text-center pt-1 text-[11px] text-slate-600 font-mono">
+            {currentContinent === 'All' ? 'All World' : currentContinent}
           </div>
         </div>
       )}
@@ -445,12 +460,16 @@ export default function App() {
         <StudyAtlas
           onBack={() => {
             sound.playClick();
+            setInspectedCountry(null);
             setAppState('TITLE_MENU');
           }}
           onPracticeCountry={(country) => {
+            setInspectedCountry(null);
             startGame('classic', 'All', country);
           }}
           learnedCodes={highScores.flagsLearned}
+          initialCountry={inspectedCountry}
+          onClearInitialCountry={() => setInspectedCountry(null)}
         />
       )}
     </main>
