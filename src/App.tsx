@@ -6,37 +6,76 @@ import { QuizPlayfield } from './components/QuizPlayfield';
 import { PauseModal } from './components/PauseModal';
 import { ResultsModal } from './components/ResultsModal';
 import { StudyAtlas } from './components/StudyAtlas';
+import { SettingsModal } from './components/SettingsModal';
 import { COUNTRIES } from './data/countries';
 import { GameMode, Continent, Country, QuizQuestion, GameStats, HighScores } from './types/flags';
 import { sound } from './utils/audio';
 import { adManager, INTERSTITIAL_FREQUENCY } from './utils/admob';
+import {
+  shuffleArray,
+  getDailyCountries,
+  getLocalDateKey,
+  getYesterdayDateKey,
+} from './utils/daily';
 
 type AppState = 'TITLE_MENU' | 'PLAYING' | 'PAUSED' | 'ROUND_SUMMARY' | 'ATLAS';
 
 const TOTAL_CLASSIC_QUESTIONS = 15;
 const BLITZ_DURATION = 60;
+const HIGH_SCORES_STORAGE_KEY = 'exile_flags_highscores';
+
+const DEFAULT_HIGH_SCORES: HighScores = {
+  classic: 0,
+  blitz: 0,
+  survival: 0,
+  flagsLearned: [],
+  dailyStreak: 0,
+  bestDailyStreak: 0,
+  lastDailyDate: null,
+  lastDailyCorrect: 0,
+  lastDailyScore: 0,
+};
+
+function loadHighScores(): HighScores {
+  try {
+    const saved = localStorage.getItem(HIGH_SCORES_STORAGE_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved) as Partial<HighScores>;
+      const merged: HighScores = {
+        ...DEFAULT_HIGH_SCORES,
+        ...parsed,
+        flagsLearned: Array.isArray(parsed.flagsLearned) ? parsed.flagsLearned : [],
+      };
+
+      // Reset active streak display if the player missed yesterday
+      const todayKey = getLocalDateKey();
+      const yesterdayKey = getYesterdayDateKey();
+      if (
+        merged.lastDailyDate &&
+        merged.lastDailyDate !== todayKey &&
+        merged.lastDailyDate !== yesterdayKey
+      ) {
+        merged.dailyStreak = 0;
+      }
+
+      return merged;
+    }
+  } catch {
+    // storage fallback
+  }
+  return { ...DEFAULT_HIGH_SCORES };
+}
 
 export default function App() {
   const [appState, setAppState] = useState<AppState>('TITLE_MENU');
   const [currentMode, setCurrentMode] = useState<GameMode>('classic');
   const [currentContinent, setCurrentContinent] = useState<Continent | 'All'>('All');
   const [isMuted, setIsMuted] = useState<boolean>(() => sound.getMuted());
+  const [hapticsEnabled, setHapticsEnabled] = useState<boolean>(() => sound.getHapticsEnabled());
+  const [showSettings, setShowSettings] = useState<boolean>(false);
 
   // High Scores & Mastered Flags
-  const [highScores, setHighScores] = useState<HighScores>(() => {
-    try {
-      const saved = localStorage.getItem('exile_flags_highscores');
-      if (saved) return JSON.parse(saved);
-    } catch {
-      // storage fallback
-    }
-    return {
-      classic: 0,
-      blitz: 0,
-      survival: 0,
-      flagsLearned: [],
-    };
-  });
+  const [highScores, setHighScores] = useState<HighScores>(() => loadHighScores());
 
   // Current session stats
   const [stats, setStats] = useState<GameStats>({
@@ -54,67 +93,82 @@ export default function App() {
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState<number>(0);
   const [isNewHighScore, setIsNewHighScore] = useState<boolean>(false);
+  const [lastMissedPool, setLastMissedPool] = useState<Country[]>([]);
 
   // Inspected country from Results modal
   const [inspectedCountry, setInspectedCountry] = useState<Country | null>(null);
 
-  // Blitz timer & latest stats refs
+  // Blitz timer & latest refs
   const blitzTimerRef = useRef<NodeJS.Timeout | null>(null);
   const questionStartTimeRef = useRef<number>(Date.now());
   const statsRef = useRef<GameStats>(stats);
   statsRef.current = stats;
+  const highScoresRef = useRef<HighScores>(highScores);
+  highScoresRef.current = highScores;
+  const showSettingsRef = useRef<boolean>(showSettings);
+  showSettingsRef.current = showSettings;
 
-  // Save high scores helper
+  // Save high scores & daily streak helper
   const updateHighScores = useCallback(
-    (mode: GameMode, finalScore: number, newLearnedCodes: string[]) => {
-      setHighScores((prev) => {
-        let isNewRecord = false;
-        const updated = { ...prev };
+    (mode: GameMode, finalScore: number, correctCount: number, newLearnedCodes: string[]) => {
+      const prev = highScoresRef.current;
+      let isNewRecord = false;
+      const updated: HighScores = { ...prev };
 
-        if (mode === 'classic' && finalScore > prev.classic) {
-          updated.classic = finalScore;
-          isNewRecord = true;
-        } else if (mode === 'blitz' && finalScore > prev.blitz) {
-          updated.blitz = finalScore;
-          isNewRecord = true;
-        } else if (mode === 'survival' && finalScore > prev.survival) {
-          updated.survival = finalScore;
-          isNewRecord = true;
+      if (mode === 'classic' && finalScore > prev.classic) {
+        updated.classic = finalScore;
+        isNewRecord = true;
+      } else if (mode === 'blitz' && finalScore > prev.blitz) {
+        updated.blitz = finalScore;
+        isNewRecord = true;
+      } else if (mode === 'survival' && finalScore > prev.survival) {
+        updated.survival = finalScore;
+        isNewRecord = true;
+      } else if (mode === 'daily') {
+        const todayKey = getLocalDateKey();
+        const yesterdayKey = getYesterdayDateKey();
+
+        if (prev.lastDailyDate !== todayKey) {
+          const nextStreak = prev.lastDailyDate === yesterdayKey ? prev.dailyStreak + 1 : 1;
+          updated.dailyStreak = nextStreak;
+          updated.bestDailyStreak = Math.max(prev.bestDailyStreak, nextStreak);
+          updated.lastDailyDate = todayKey;
+          updated.lastDailyCorrect = correctCount;
+          updated.lastDailyScore = finalScore;
+        } else {
+          updated.lastDailyCorrect = Math.max(prev.lastDailyCorrect, correctCount);
+          updated.lastDailyScore = Math.max(prev.lastDailyScore, finalScore);
         }
+      }
 
-        const setOfCodes = new Set([...prev.flagsLearned, ...newLearnedCodes]);
-        updated.flagsLearned = Array.from(setOfCodes);
+      const setOfCodes = new Set([...prev.flagsLearned, ...newLearnedCodes]);
+      updated.flagsLearned = Array.from(setOfCodes);
 
-        setIsNewHighScore(isNewRecord);
+      try {
+        localStorage.setItem(HIGH_SCORES_STORAGE_KEY, JSON.stringify(updated));
+      } catch {
+        // ignore
+      }
 
-        try {
-          localStorage.setItem('exile_flags_highscores', JSON.stringify(updated));
-        } catch {
-          // ignore
-        }
-
-        return updated;
-      });
+      highScoresRef.current = updated;
+      setHighScores(updated);
+      setIsNewHighScore(isNewRecord);
     },
     []
   );
 
-  // Generate question helper
+  // Generate question helper (unbiased Fisher-Yates shuffle)
   const createQuestion = useCallback((targetCountry: Country, allCountries: Country[]): QuizQuestion => {
     const sameContinent = allCountries.filter(
       (c) => c.code !== targetCountry.code && c.continent === targetCountry.continent
     );
     const otherCountries = allCountries.filter((c) => c.code !== targetCountry.code);
 
-    const distractors: Country[] = [];
     const pool = sameContinent.length >= 3 ? sameContinent : otherCountries;
-    const shuffledPool = [...pool].sort(() => 0.5 - Math.random());
+    const shuffledPool = shuffleArray(pool);
+    const distractors = shuffledPool.slice(0, Math.min(3, shuffledPool.length));
 
-    for (let i = 0; i < Math.min(3, shuffledPool.length); i++) {
-      distractors.push(shuffledPool[i]);
-    }
-
-    const options = [targetCountry, ...distractors].sort(() => 0.5 - Math.random());
+    const options = shuffleArray([targetCountry, ...distractors]);
     const correctIndex = options.findIndex((c) => c.code === targetCountry.code);
 
     return {
@@ -126,7 +180,20 @@ export default function App() {
     };
   }, []);
 
-  // Start game flow
+  const resetSessionStats = useCallback(() => {
+    setStats({
+      score: 0,
+      totalAnswered: 0,
+      correctCount: 0,
+      currentStreak: 0,
+      maxStreak: 0,
+      livesRemaining: 3,
+      timeRemaining: BLITZ_DURATION,
+      history: [],
+    });
+  }, []);
+
+  // Start standard game flow (Classic / 60s Blitz / Survival)
   const startGame = useCallback(
     (mode: GameMode, continent: Continent | 'All', specificCountry?: Country) => {
       sound.playClick();
@@ -136,34 +203,78 @@ export default function App() {
       setInspectedCountry(null);
 
       const pool = COUNTRIES.filter((c) => continent === 'All' || c.continent === continent);
-      const shuffled = [...pool].sort(() => 0.5 - Math.random());
+      const shuffled = shuffleArray(pool);
 
       let sessionCountries = shuffled;
       if (specificCountry) {
         sessionCountries = [specificCountry, ...shuffled.filter((c) => c.code !== specificCountry.code)];
       }
 
-      const generatedQuestions = sessionCountries.map((c) => createQuestion(c, pool));
+      const distractorPool = pool.length >= 4 ? pool : COUNTRIES;
+      const generatedQuestions = sessionCountries.map((c) => createQuestion(c, distractorPool));
 
       setQuestions(generatedQuestions);
       setCurrentQuestionIndex(0);
-
-      setStats({
-        score: 0,
-        totalAnswered: 0,
-        correctCount: 0,
-        currentStreak: 0,
-        maxStreak: 0,
-        livesRemaining: 3,
-        timeRemaining: BLITZ_DURATION,
-        history: [],
-      });
+      resetSessionStats();
 
       questionStartTimeRef.current = Date.now();
       setAppState('PLAYING');
     },
-    [createQuestion]
+    [createQuestion, resetSessionStats]
   );
+
+  // Start Today's 5-Flag Daily Challenge
+  const startDailyChallenge = useCallback(() => {
+    sound.playClick();
+    setCurrentMode('daily');
+    setCurrentContinent('All');
+    setIsNewHighScore(false);
+    setInspectedCountry(null);
+
+    const dailyCountries = getDailyCountries(COUNTRIES);
+    const generatedQuestions = dailyCountries.map((c) => createQuestion(c, COUNTRIES));
+
+    setQuestions(generatedQuestions);
+    setCurrentQuestionIndex(0);
+    resetSessionStats();
+
+    questionStartTimeRef.current = Date.now();
+    setAppState('PLAYING');
+  }, [createQuestion, resetSessionStats]);
+
+  // Start Focused Mistakes Drill for Missed Flags
+  const startMistakesPractice = useCallback(
+    (missedCountries: Country[]) => {
+      if (missedCountries.length === 0) return;
+      sound.playClick();
+      setCurrentMode('mistakes');
+      setCurrentContinent('All');
+      setIsNewHighScore(false);
+      setInspectedCountry(null);
+      setLastMissedPool(missedCountries);
+
+      const shuffled = shuffleArray(missedCountries);
+      const generatedQuestions = shuffled.map((c) => createQuestion(c, COUNTRIES));
+
+      setQuestions(generatedQuestions);
+      setCurrentQuestionIndex(0);
+      resetSessionStats();
+
+      questionStartTimeRef.current = Date.now();
+      setAppState('PLAYING');
+    },
+    [createQuestion, resetSessionStats]
+  );
+
+  const handleRestartCurrentMode = useCallback(() => {
+    if (currentMode === 'daily') {
+      startDailyChallenge();
+    } else if (currentMode === 'mistakes' && lastMissedPool.length > 0) {
+      startMistakesPractice(lastMissedPool);
+    } else {
+      startGame(currentMode, currentContinent);
+    }
+  }, [currentMode, currentContinent, lastMissedPool, startDailyChallenge, startMistakesPractice, startGame]);
 
   // Handle Game Over / Round Summary
   const handleGameOver = useCallback(() => {
@@ -171,9 +282,12 @@ export default function App() {
 
     const currentStats = statsRef.current;
     const learned = currentStats.history.filter((h) => h.isCorrect).map((h) => h.country.code);
-    updateHighScores(currentMode, currentStats.score, learned);
+    updateHighScores(currentMode, currentStats.score, currentStats.correctCount, learned);
 
-    if (currentStats.correctCount >= 10 || currentStats.score > 1000) {
+    const accuracy =
+      currentStats.totalAnswered > 0 ? currentStats.correctCount / currentStats.totalAnswered : 0;
+
+    if (accuracy >= 0.7 || currentStats.correctCount >= 10 || currentStats.score > 1000) {
       sound.playVictory();
     } else {
       sound.playGameOver();
@@ -276,6 +390,12 @@ export default function App() {
     [questions, currentQuestionIndex, currentMode]
   );
 
+  // Accurate total questions per round (fixes Oceania 14-flag mismatch in Classic)
+  const totalRoundQuestions =
+    currentMode === 'classic'
+      ? Math.min(TOTAL_CLASSIC_QUESTIONS, questions.length)
+      : questions.length;
+
   // Advance to next question
   const handleNextQuestion = useCallback(() => {
     sound.playClick();
@@ -285,19 +405,14 @@ export default function App() {
       return;
     }
 
-    if (currentMode === 'classic' && currentQuestionIndex >= TOTAL_CLASSIC_QUESTIONS - 1) {
-      handleGameOver();
-      return;
-    }
-
-    if (currentQuestionIndex + 1 >= questions.length) {
+    if (currentQuestionIndex + 1 >= totalRoundQuestions) {
       handleGameOver();
       return;
     }
 
     setCurrentQuestionIndex((prev) => prev + 1);
     questionStartTimeRef.current = Date.now();
-  }, [currentMode, currentQuestionIndex, questions.length, stats.livesRemaining, handleGameOver]);
+  }, [currentMode, currentQuestionIndex, totalRoundQuestions, stats.livesRemaining, handleGameOver]);
 
   // Pause toggle
   const togglePause = useCallback(() => {
@@ -313,6 +428,12 @@ export default function App() {
   // Android Hardware Back Button Handler via Capacitor App
   useEffect(() => {
     const backListener = CapacitorApp.addListener('backButton', () => {
+      if (showSettingsRef.current) {
+        sound.playClick();
+        setShowSettings(false);
+        return;
+      }
+
       setAppState((current) => {
         if (current === 'PLAYING') {
           sound.playClick();
@@ -332,19 +453,19 @@ export default function App() {
     };
   }, []);
 
-  // Initialize AdMob on mount
+  // Initialize AdMob + UMP Consent on mount
   useEffect(() => {
-    adManager.initialize();
+    void adManager.initialize();
   }, []);
 
   // Show bottom banner ad on Title Screen & Flag Atlas; hide during active gameplay & modals
   useEffect(() => {
-    if (appState === 'TITLE_MENU' || appState === 'ATLAS') {
+    if ((appState === 'TITLE_MENU' || appState === 'ATLAS') && !showSettings) {
       void adManager.showBanner();
     } else {
       void adManager.hideBanner();
     }
-  }, [appState]);
+  }, [appState, showSettings]);
 
   // Handle Revive via Rewarded Video Ad (Survival Mode)
   const handleReviveSurvival = useCallback(async (): Promise<boolean> => {
@@ -369,15 +490,44 @@ export default function App() {
     setIsMuted(nextMuted);
   };
 
+  const handleToggleHaptics = () => {
+    const nextEnabled = sound.toggleHaptics();
+    setHapticsEnabled(nextEnabled);
+  };
+
+  const handleResetProgress = () => {
+    sound.playClick();
+    setHighScores({ ...DEFAULT_HIGH_SCORES });
+    try {
+      localStorage.removeItem(HIGH_SCORES_STORAGE_KEY);
+    } catch {
+      // ignore
+    }
+  };
+
+  const playfieldFooterLabel =
+    currentMode === 'daily'
+      ? 'Daily Challenge'
+      : currentMode === 'mistakes'
+      ? 'Mistakes Practice'
+      : currentContinent === 'All'
+      ? 'All World'
+      : currentContinent;
+
   return (
     <main className="min-h-screen w-full bg-slate-950 text-slate-100 flex flex-col font-sans select-none overflow-x-hidden">
       {/* Title Screen */}
       {appState === 'TITLE_MENU' && (
         <TitleScreen
           onStartGame={(mode, continent) => startGame(mode, continent)}
+          onStartDaily={startDailyChallenge}
           onOpenAtlas={() => {
             sound.playClick();
             setAppState('ATLAS');
+          }}
+          onOpenSettings={() => {
+            sound.playClick();
+            setShowSettings(true);
           }}
           highScores={highScores}
           isMuted={isMuted}
@@ -396,7 +546,7 @@ export default function App() {
             timeLeft={stats.timeRemaining}
             totalTime={BLITZ_DURATION}
             currentQuestionIndex={currentQuestionIndex}
-            totalQuestions={currentMode === 'classic' ? TOTAL_CLASSIC_QUESTIONS : questions.length}
+            totalQuestions={totalRoundQuestions}
             isMuted={isMuted}
             onToggleMute={handleToggleMute}
             onPause={togglePause}
@@ -410,14 +560,13 @@ export default function App() {
               isBlitz={currentMode === 'blitz'}
               isFinalStep={
                 (currentMode === 'survival' && (stats.livesRemaining ?? 3) <= 0) ||
-                (currentMode === 'classic' && currentQuestionIndex >= TOTAL_CLASSIC_QUESTIONS - 1) ||
-                currentQuestionIndex + 1 >= questions.length
+                currentQuestionIndex + 1 >= totalRoundQuestions
               }
             />
           </div>
 
           <div className="w-full text-center pt-1 text-[11px] text-slate-600 font-mono">
-            {currentContinent === 'All' ? 'All World' : currentContinent}
+            {playfieldFooterLabel}
           </div>
         </div>
       )}
@@ -426,7 +575,7 @@ export default function App() {
       {appState === 'PAUSED' && (
         <PauseModal
           onResume={togglePause}
-          onRestart={() => startGame(currentMode, currentContinent)}
+          onRestart={handleRestartCurrentMode}
           onQuitToMenu={() => {
             sound.playClick();
             setAppState('TITLE_MENU');
@@ -442,7 +591,8 @@ export default function App() {
           mode={currentMode}
           stats={stats}
           isNewHighScore={isNewHighScore}
-          onRestart={() => startGame(currentMode, currentContinent)}
+          dailyStreak={highScores.dailyStreak}
+          onRestart={handleRestartCurrentMode}
           onQuitToMenu={() => {
             sound.playClick();
             setAppState('TITLE_MENU');
@@ -451,6 +601,7 @@ export default function App() {
             setInspectedCountry(country);
             setAppState('ATLAS');
           }}
+          onPracticeMissed={startMistakesPractice}
           onRevive={handleReviveSurvival}
         />
       )}
@@ -470,6 +621,21 @@ export default function App() {
           learnedCodes={highScores.flagsLearned}
           initialCountry={inspectedCountry}
           onClearInitialCountry={() => setInspectedCountry(null)}
+        />
+      )}
+
+      {/* Settings & Privacy Modal */}
+      {showSettings && (
+        <SettingsModal
+          isMuted={isMuted}
+          onToggleMute={handleToggleMute}
+          hapticsEnabled={hapticsEnabled}
+          onToggleHaptics={handleToggleHaptics}
+          onResetProgress={handleResetProgress}
+          onClose={() => {
+            sound.playClick();
+            setShowSettings(false);
+          }}
         />
       )}
     </main>

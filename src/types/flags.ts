@@ -1,6 +1,6 @@
 export type Continent = 'Europe' | 'Asia' | 'Africa' | 'Americas' | 'Oceania';
 
-export type GameMode = 'classic' | 'blitz' | 'survival' | 'atlas';
+export type GameMode = 'classic' | 'blitz' | 'survival' | 'daily' | 'mistakes' | 'atlas';
 
 export type QuestionType = 'flag-to-name' | 'name-to-flag';
 
@@ -43,4 +43,9 @@ export interface HighScores {
   blitz: number;
   survival: number;
   flagsLearned: string[]; // country codes
+  dailyStreak: number;
+  bestDailyStreak: number;
+  lastDailyDate: string | null; // YYYY-MM-DD
+  lastDailyCorrect: number;
+  lastDailyScore: number;
 }

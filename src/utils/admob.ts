@@ -6,6 +6,7 @@ import {
   AdOptions,
   RewardAdOptions,
   AdMobRewardItem,
+  AdmobConsentStatus,
 } from '@capacitor-community/admob';
 import { Capacitor } from '@capacitor/core';
 
@@ -38,6 +39,7 @@ const LIVE_AD_IDS = {
 export const AD_CONFIG = IS_PRODUCTION_ADS ? LIVE_AD_IDS : TEST_AD_IDS;
 
 let isInitialized = false;
+let isConsentChecked = false;
 let isBannerShown = false;
 let isInterstitialReady = false;
 let isPreloadingInterstitial = false;
@@ -47,8 +49,8 @@ let completedRoundsCount = 0;
 
 export const adManager = {
   /**
-   * Initializes the Google Mobile Ads (AdMob) SDK on native Android
-   * and preloads ads in the background so transitions never stall or flash white.
+   * Requests Google UMP / GDPR consent when required (EEA/UK compliance),
+   * initializes the Google Mobile Ads SDK, and preloads ads silently.
    */
   async initialize(): Promise<void> {
     if (!Capacitor.isNativePlatform()) {
@@ -56,17 +58,50 @@ export const adManager = {
     }
 
     try {
+      if (!isConsentChecked) {
+        isConsentChecked = true;
+        try {
+          const consentInfo = await AdMob.requestConsentInfo();
+          if (
+            consentInfo.isConsentFormAvailable &&
+            consentInfo.status === AdmobConsentStatus.REQUIRED
+          ) {
+            await AdMob.showConsentForm();
+          }
+        } catch {
+          // Continue safely if UMP form is not yet configured in AdMob console
+        }
+      }
+
       if (!isInitialized) {
         await AdMob.initialize({
           initializeForTesting: !IS_PRODUCTION_ADS,
         });
         isInitialized = true;
       }
+
       // Preload in background without blocking UI
       void this.preloadInterstitial();
       void this.preloadRewardedAd();
     } catch {
       // Graceful fallback if running outside native bridge
+    }
+  },
+
+  /**
+   * Opens Google's UMP Privacy Options form (for Settings -> Ad Privacy Preferences)
+   */
+  async openPrivacyOptions(): Promise<boolean> {
+    if (!Capacitor.isNativePlatform()) {
+      return false;
+    }
+
+    try {
+      await AdMob.requestConsentInfo();
+      await AdMob.showPrivacyOptionsForm();
+      return true;
+    } catch {
+      return false;
     }
   },
 

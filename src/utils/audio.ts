@@ -5,12 +5,15 @@ import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics';
 class SoundEngine {
   private ctx: AudioContext | null = null;
   private isMuted: boolean = false;
+  private hapticsEnabled: boolean = true;
 
   constructor() {
     try {
       this.isMuted = localStorage.getItem('exile_flags_muted') === 'true';
+      this.hapticsEnabled = localStorage.getItem('world_flags_haptics') !== 'false';
     } catch {
       this.isMuted = false;
+      this.hapticsEnabled = true;
     }
   }
 
@@ -40,7 +43,25 @@ class SoundEngine {
     return this.isMuted;
   }
 
+  public getHapticsEnabled(): boolean {
+    return this.hapticsEnabled;
+  }
+
+  public toggleHaptics(): boolean {
+    this.hapticsEnabled = !this.hapticsEnabled;
+    try {
+      localStorage.setItem('world_flags_haptics', this.hapticsEnabled ? 'true' : 'false');
+    } catch {
+      // ignore
+    }
+    if (this.hapticsEnabled) {
+      this.triggerHaptic('light');
+    }
+    return this.hapticsEnabled;
+  }
+
   private async triggerHaptic(type: 'light' | 'medium' | 'error' | 'success') {
+    if (!this.hapticsEnabled) return;
     try {
       if (type === 'light') {
         await Haptics.impact({ style: ImpactStyle.Light });

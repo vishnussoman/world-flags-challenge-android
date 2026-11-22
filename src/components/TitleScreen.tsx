@@ -1,12 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { Play, Zap, Shield, BookOpen, Volume2, VolumeX, Award } from 'lucide-react';
+import { Play, Zap, Shield, BookOpen, Volume2, VolumeX, Award, Settings, Calendar, Flame, CheckCircle2 } from 'lucide-react';
 import { GameMode, Continent, HighScores } from '../types/flags';
 import { COUNTRIES } from '../data/countries';
+import { getLocalDateKey, DAILY_QUESTION_COUNT } from '../utils/daily';
 import { FlagSvg } from './FlagSvg';
 
 interface TitleScreenProps {
   onStartGame: (mode: GameMode, continent: Continent | 'All') => void;
+  onStartDaily: () => void;
   onOpenAtlas: () => void;
+  onOpenSettings: () => void;
   highScores: HighScores;
   isMuted: boolean;
   onToggleMute: () => void;
@@ -20,7 +23,9 @@ const SHOWCASE_CODES = [
 
 export const TitleScreen: React.FC<TitleScreenProps> = ({
   onStartGame,
+  onStartDaily,
   onOpenAtlas,
+  onOpenSettings,
   highScores,
   isMuted,
   onToggleMute,
@@ -58,6 +63,9 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
   const learnedCount = highScores.flagsLearned.length;
   const totalCountries = COUNTRIES.length;
   const masteryPct = Math.round((learnedCount / totalCountries) * 100);
+
+  const todayKey = getLocalDateKey();
+  const completedDailyToday = highScores.lastDailyDate === todayKey;
 
   const modes: {
     id: GameMode;
@@ -107,8 +115,8 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_55%_at_50%_-10%,rgba(16,185,129,0.16),rgba(2,6,23,0))] pointer-events-none" />
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b0a_1px,transparent_1px),linear-gradient(to_bottom,#1e293b0a_1px,transparent_1px)] bg-[size:4rem_4rem] pointer-events-none" />
 
-      {/* Top Bar: Mastery Progress + 44px Audio Control */}
-      <header className="relative z-10 w-full max-w-5xl mx-auto flex items-center justify-between gap-4">
+      {/* Top Bar: Mastery Progress + 44px Audio & Settings Controls */}
+      <header className="relative z-10 w-full max-w-5xl mx-auto flex items-center justify-between gap-3">
         <button
           onClick={onOpenAtlas}
           className="flex flex-col items-start gap-1 py-1 text-left group cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 rounded-lg"
@@ -130,31 +138,40 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
           </div>
         </button>
 
-        <button
-          onClick={onToggleMute}
-          className="min-h-[44px] min-w-[44px] px-3 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-800 flex items-center justify-center gap-2 text-xs font-medium text-slate-300 transition-colors cursor-pointer active:scale-[0.97]"
-          aria-label={isMuted ? 'Unmute Sound' : 'Mute Sound'}
-        >
-          {isMuted ? (
-            <VolumeX className="w-4 h-4 text-rose-400" />
-          ) : (
-            <Volume2 className="w-4 h-4 text-emerald-400" />
-          )}
-          <span className="hidden sm:inline whitespace-nowrap">{isMuted ? 'Muted' : 'Sound On'}</span>
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={onToggleMute}
+            className="w-11 h-11 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-800 flex items-center justify-center text-slate-300 transition-colors cursor-pointer active:scale-95"
+            aria-label={isMuted ? 'Unmute Sound' : 'Mute Sound'}
+          >
+            {isMuted ? (
+              <VolumeX className="w-4 h-4 text-rose-400" />
+            ) : (
+              <Volume2 className="w-4 h-4 text-emerald-400" />
+            )}
+          </button>
+
+          <button
+            onClick={onOpenSettings}
+            className="w-11 h-11 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-800 flex items-center justify-center text-slate-300 hover:text-white transition-colors cursor-pointer active:scale-95"
+            aria-label="Settings and Privacy"
+          >
+            <Settings className="w-4 h-4" />
+          </button>
+        </div>
       </header>
 
-      {/* Hero Centerpiece: Fits cleanly above the fold on mobile & scales on desktop */}
-      <div className="relative z-10 w-full max-w-4xl mx-auto flex flex-col items-center text-center my-auto py-3 md:py-6">
+      {/* Hero Centerpiece */}
+      <div className="relative z-10 w-full max-w-4xl mx-auto flex flex-col items-center text-center my-auto py-2 md:py-5">
         {/* Flag Showcase */}
-        <div className="flex flex-col items-center mb-3 md:mb-5">
-          <div className="w-36 h-24 sm:w-44 sm:h-28 md:w-52 md:h-34 rounded-2xl overflow-hidden shadow-2xl border border-emerald-500/35 p-1 bg-slate-900/90">
+        <div className="flex flex-col items-center mb-2.5 md:mb-4">
+          <div className="w-32 h-22 sm:w-44 sm:h-28 md:w-48 md:h-32 rounded-2xl overflow-hidden shadow-2xl border border-emerald-500/35 p-1 bg-slate-900/90">
             <FlagSvg
               code={activeCode}
               className="w-full h-full object-cover rounded-xl"
             />
           </div>
-          <span className="mt-1.5 text-xs text-slate-400 font-medium tracking-wide">
+          <span className="mt-1 text-xs text-slate-400 font-medium tracking-wide">
             {activeCountry ? activeCountry.name : activeCode}
             <span aria-hidden="true" className="mx-1.5 text-slate-600">·</span>
             <span className="font-mono text-emerald-400/90">{activeCode}</span>
@@ -162,8 +179,8 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
         </div>
 
         {/* Title Lockup */}
-        <div className="mb-1.5 md:mb-2 w-full px-1">
-          <svg viewBox="0 0 760 60" className="w-full max-w-xl h-auto mx-auto block font-display overflow-visible">
+        <div className="mb-1 w-full px-1">
+          <svg viewBox="0 0 760 58" className="w-full max-w-xl h-auto mx-auto block font-display overflow-visible">
             <defs>
               <linearGradient id="titleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
                 <stop offset="0%" stopColor="#FFFFFF" />
@@ -173,7 +190,7 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
             </defs>
             <text
               x="380"
-              y="44"
+              y="43"
               textAnchor="middle"
               fill="url(#titleGrad)"
               fontSize="38"
@@ -185,26 +202,74 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
           </svg>
         </div>
 
-        <p className="text-xs sm:text-sm md:text-base text-slate-400 max-w-md mx-auto mb-5 md:mb-7 text-balance">
-          Identify all <strong className="text-slate-200 font-semibold">196 sovereign nations</strong> across 5 continents.
+        <p className="text-xs sm:text-sm text-slate-400 max-w-md mx-auto mb-3.5 md:mb-5 text-balance">
+          All <strong className="text-slate-200 font-semibold">196 sovereign nations</strong> across 5 continents.
         </p>
 
-        {/* Compact 3-Column Mode Selector (Single Row even on Mobile!) */}
-        <div className="w-full grid grid-cols-3 gap-2 sm:gap-3 mb-4 md:mb-6 text-left">
+        {/* Daily Flag Challenge Strip (Retention Habit Driver) */}
+        <button
+          onClick={onStartDaily}
+          className={`w-full mb-3 sm:mb-4 px-4 py-3 rounded-2xl border flex items-center justify-between gap-3 text-left transition-all duration-150 cursor-pointer active:scale-[0.99] ${
+            completedDailyToday
+              ? 'bg-slate-900/80 border-emerald-500/40 hover:border-emerald-500/70'
+              : 'bg-amber-950/35 border-amber-500/50 hover:border-amber-400 shadow-lg shadow-amber-950/30'
+          }`}
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <div
+              className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                completedDailyToday ? 'bg-emerald-500/15 text-emerald-400' : 'bg-amber-500/15 text-amber-400'
+              }`}
+            >
+              {completedDailyToday ? <CheckCircle2 className="w-5 h-5" /> : <Calendar className="w-5 h-5" />}
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-sm sm:text-base text-white truncate">
+                  Daily Challenge
+                </span>
+                {highScores.dailyStreak > 0 && (
+                  <span className="inline-flex items-center gap-0.5 text-xs font-mono font-bold text-amber-400 tabular-nums shrink-0">
+                    <Flame className="w-3.5 h-3.5 fill-amber-400" />
+                    {highScores.dailyStreak}d
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-400 truncate">
+                {completedDailyToday
+                  ? `Completed today · ${highScores.lastDailyCorrect}/${DAILY_QUESTION_COUNT} correct`
+                  : `Today's ${DAILY_QUESTION_COUNT} flags · Keep your streak alive`}
+              </p>
+            </div>
+          </div>
+
+          <span
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold shrink-0 whitespace-nowrap ${
+              completedDailyToday
+                ? 'bg-slate-800 text-slate-200'
+                : 'bg-amber-500 text-slate-950'
+            }`}
+          >
+            {completedDailyToday ? 'Replay' : 'Play'}
+          </span>
+        </button>
+
+        {/* Compact 3-Column Mode Selector */}
+        <div className="w-full grid grid-cols-3 gap-2 sm:gap-3 mb-3.5 md:mb-5 text-left">
           {modes.map((m) => {
             const isActive = selectedMode === m.id;
             return (
               <button
                 key={m.id}
                 onClick={() => setSelectedMode(m.id)}
-                className={`p-3 sm:p-4 rounded-2xl border transition-all duration-150 cursor-pointer active:scale-[0.98] flex flex-col justify-between min-h-[96px] sm:min-h-[120px] ${
+                className={`p-3 sm:p-4 rounded-2xl border transition-all duration-150 cursor-pointer active:scale-[0.98] flex flex-col justify-between min-h-[92px] sm:min-h-[114px] ${
                   isActive
                     ? m.activeClass
                     : 'bg-slate-900/70 border-slate-800 hover:border-slate-700 text-slate-300'
                 }`}
               >
                 <div>
-                  <div className="flex items-center gap-1.5 mb-1">
+                  <div className="flex items-center gap-1.5 mb-0.5">
                     {m.icon}
                     <span className="font-bold text-sm sm:text-base text-white truncate">
                       {m.label}
@@ -213,12 +278,12 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
                   <span className="text-[11px] sm:text-xs text-slate-400 block">
                     {m.shortRule}
                   </span>
-                  <p className="hidden sm:block text-xs text-slate-400 mt-1.5 leading-snug">
+                  <p className="hidden sm:block text-xs text-slate-400 mt-1 leading-snug">
                     {m.description}
                   </p>
                 </div>
 
-                <div className={`mt-2 pt-1.5 border-t border-slate-800/70 text-[11px] font-mono tabular-nums flex items-center gap-1 ${m.accentText}`}>
+                <div className={`mt-1.5 pt-1.5 border-t border-slate-800/70 text-[11px] font-mono tabular-nums flex items-center gap-1 ${m.accentText}`}>
                   <Award className="w-3 h-3 shrink-0" />
                   <span className="truncate">{m.best.toLocaleString()}</span>
                 </div>
@@ -228,7 +293,7 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
         </div>
 
         {/* Region Filter Segmented Control */}
-        <div className="w-full mb-5 md:mb-7">
+        <div className="w-full mb-4 md:mb-6">
           <div className="flex items-center sm:justify-center gap-1.5 p-1 bg-slate-900/80 border border-slate-800 rounded-xl overflow-x-auto no-scrollbar max-w-xl mx-auto">
             {continents.map((continent) => (
               <button
@@ -246,7 +311,7 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
           </div>
         </div>
 
-        {/* Primary CTA & Secondary Atlas Action (Thumb-Zone Friendly) */}
+        {/* Primary CTA & Secondary Atlas Action */}
         <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5 sm:gap-3 w-full max-w-md">
           <button
             onClick={() => onStartGame(selectedMode, selectedContinent)}
@@ -266,7 +331,6 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
         </div>
       </div>
 
-      {/* Subtle spacer so hero stays vertically balanced above bottom ad banner */}
       <div className="h-1" aria-hidden="true" />
     </div>
   );

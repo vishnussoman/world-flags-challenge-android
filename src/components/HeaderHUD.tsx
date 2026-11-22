@@ -47,10 +47,12 @@ export const HeaderHUD: React.FC<HeaderHUDProps> = ({
           />
         </div>
       )}
-      {mode === 'classic' && (
+      {(mode === 'classic' || mode === 'daily' || mode === 'mistakes') && (
         <div className="w-full h-1 bg-slate-800 overflow-hidden">
           <div
-            className="h-full bg-emerald-500 transition-all duration-300 ease-out"
+            className={`h-full transition-all duration-300 ease-out ${
+              mode === 'daily' ? 'bg-amber-400' : 'bg-emerald-500'
+            }`}
             style={{ width: `${classicProgressPct}%` }}
           />
         </div>
