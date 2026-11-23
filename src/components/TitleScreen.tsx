@@ -13,6 +13,7 @@ interface TitleScreenProps {
   highScores: HighScores;
   isMuted: boolean;
   onToggleMute: () => void;
+  isModalOpen?: boolean;
 }
 
 const SHOWCASE_CODES = [
@@ -29,6 +30,7 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
   highScores,
   isMuted,
   onToggleMute,
+  isModalOpen = false,
 }) => {
   const [selectedMode, setSelectedMode] = useState<GameMode>('classic');
   const [selectedContinent, setSelectedContinent] = useState<Continent | 'All'>('All');
@@ -41,8 +43,9 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
     return () => clearInterval(timer);
   }, []);
 
-  // Keyboard shortcut: Space or Enter starts game on desktop
+  // Keyboard shortcut: Space or Enter starts game on desktop (disabled while modal is open)
   useEffect(() => {
+    if (isModalOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.code === 'Space' || e.key === 'Enter') {
         e.preventDefault();
@@ -55,7 +58,7 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedMode, selectedContinent, onStartGame, onOpenAtlas]);
+  }, [isModalOpen, selectedMode, selectedContinent, onStartGame, onOpenAtlas]);
 
   const continents: (Continent | 'All')[] = ['All', 'Europe', 'Asia', 'Africa', 'Americas', 'Oceania'];
   const activeCode = SHOWCASE_CODES[activeFlagIdx];

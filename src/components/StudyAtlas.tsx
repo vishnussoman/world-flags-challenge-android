@@ -8,33 +8,24 @@ interface StudyAtlasProps {
   onBack: () => void;
   onPracticeCountry: (country: Country) => void;
   learnedCodes: string[];
-  initialCountry?: Country | null;
-  onClearInitialCountry?: () => void;
+  activeCountry: Country | null;
+  onSelectCountry: (country: Country | null) => void;
 }
 
 export const StudyAtlas: React.FC<StudyAtlasProps> = ({
   onBack,
   onPracticeCountry,
   learnedCodes,
-  initialCountry = null,
-  onClearInitialCountry,
+  activeCountry,
+  onSelectCountry,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedContinent, setSelectedContinent] = useState<Continent | 'All'>('All');
   const [viewMode, setViewMode] = useState<'grid' | 'flashcards'>('grid');
-  const [activeCountry, setActiveCountry] = useState<Country | null>(initialCountry);
 
   // Flashcard mode state
   const [cardIndex, setCardIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
-
-  // Open country dossier immediately when navigated from Results modal
-  useEffect(() => {
-    if (initialCountry) {
-      setActiveCountry(initialCountry);
-      onClearInitialCountry?.();
-    }
-  }, [initialCountry, onClearInitialCountry]);
 
   // Reset flashcard position whenever filters or search change
   useEffect(() => {
@@ -175,7 +166,7 @@ export const StudyAtlas: React.FC<StudyAtlasProps> = ({
                 return (
                   <button
                     key={country.code}
-                    onClick={() => setActiveCountry(country)}
+                    onClick={() => onSelectCountry(country)}
                     className="group bg-slate-900/80 hover:bg-slate-900 border border-slate-800/80 hover:border-slate-700 rounded-2xl p-3 flex flex-col text-left transition-all duration-150 cursor-pointer active:scale-[0.98]"
                   >
                     <div className="w-full aspect-[3/2] mb-2.5 overflow-hidden rounded-lg">
@@ -235,7 +226,7 @@ export const StudyAtlas: React.FC<StudyAtlasProps> = ({
                     /* Front: Flag Showcase */
                     <div className="flex flex-col items-center justify-center my-auto w-full text-center">
                       <div className="w-60 h-40 sm:w-72 sm:h-48 rounded-xl overflow-hidden shadow-xl mb-6">
-                        <FlagSvg code={currentCard.code} className="w-full h-full object-cover" />
+                        <FlagSvg code={currentCard.code} hideLabel={true} className="w-full h-full object-cover" />
                       </div>
                       <span className="text-xs text-slate-400 font-medium">
                         Tap card to reveal country details
@@ -330,10 +321,10 @@ export const StudyAtlas: React.FC<StudyAtlasProps> = ({
         )}
       </div>
 
-      {/* Country Detail Modal (Tap outside or X to close, solid dark scrim for Android) */}
+      {/* Country Detail Modal (Tap outside, X, or Android Back to close; solid dark scrim for Android) */}
       {activeCountry && (
         <div
-          onClick={() => setActiveCountry(null)}
+          onClick={() => onSelectCountry(null)}
           className="fixed inset-0 z-50 bg-slate-950/90 flex items-center justify-center p-4 overflow-y-auto"
         >
           <div
@@ -341,7 +332,7 @@ export const StudyAtlas: React.FC<StudyAtlasProps> = ({
             className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-5 sm:p-6 shadow-2xl animate-pop text-left relative my-auto"
           >
             <button
-              onClick={() => setActiveCountry(null)}
+              onClick={() => onSelectCountry(null)}
               className="absolute top-3 right-3 w-11 h-11 rounded-xl bg-slate-950/80 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white flex items-center justify-center z-10 cursor-pointer active:scale-95"
               aria-label="Close dossier"
             >
@@ -349,7 +340,7 @@ export const StudyAtlas: React.FC<StudyAtlasProps> = ({
             </button>
 
             <div className="w-full aspect-[3/2] rounded-xl overflow-hidden shadow-lg mb-4">
-              <FlagSvg code={activeCountry.code} className="w-full h-full object-cover" />
+              <FlagSvg code={activeCountry.code} title={activeCountry.name} className="w-full h-full object-cover" />
             </div>
 
             <div className="mb-3 pb-3 border-b border-slate-800">
@@ -374,7 +365,7 @@ export const StudyAtlas: React.FC<StudyAtlasProps> = ({
 
             <div className="grid grid-cols-2 gap-2.5">
               <button
-                onClick={() => setActiveCountry(null)}
+                onClick={() => onSelectCountry(null)}
                 className="min-h-[48px] px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-sm font-semibold text-slate-200 cursor-pointer active:scale-[0.98]"
               >
                 Close
@@ -382,7 +373,7 @@ export const StudyAtlas: React.FC<StudyAtlasProps> = ({
               <button
                 onClick={() => {
                   const target = activeCountry;
-                  setActiveCountry(null);
+                  onSelectCountry(null);
                   onPracticeCountry(target);
                 }}
                 className="min-h-[48px] px-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-sm font-semibold flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-emerald-950/40 active:scale-[0.98]"

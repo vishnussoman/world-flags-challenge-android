@@ -93,20 +93,24 @@ export default function App() {
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState<number>(0);
   const [isNewHighScore, setIsNewHighScore] = useState<boolean>(false);
+  const [hasRevivedInRun, setHasRevivedInRun] = useState<boolean>(false);
   const [lastMissedPool, setLastMissedPool] = useState<Country[]>([]);
 
-  // Inspected country from Results modal
-  const [inspectedCountry, setInspectedCountry] = useState<Country | null>(null);
+  // Active country dossier inside Flag Atlas (also populated from Results modal)
+  const [activeAtlasCountry, setActiveAtlasCountry] = useState<Country | null>(null);
 
   // Blitz timer & latest refs
-  const blitzTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const blitzTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const questionStartTimeRef = useRef<number>(Date.now());
+  const gameOverTriggeredRef = useRef<boolean>(false);
   const statsRef = useRef<GameStats>(stats);
   statsRef.current = stats;
   const highScoresRef = useRef<HighScores>(highScores);
   highScoresRef.current = highScores;
   const showSettingsRef = useRef<boolean>(showSettings);
   showSettingsRef.current = showSettings;
+  const activeAtlasCountryRef = useRef<Country | null>(activeAtlasCountry);
+  activeAtlasCountryRef.current = activeAtlasCountry;
 
   // Save high scores & daily streak helper
   const updateHighScores = useCallback(
@@ -193,14 +197,30 @@ export default function App() {
     });
   }, []);
 
+  // Build a freshly shuffled batch of questions for a continent (avoiding repeating the immediately previous flag)
+  const buildContinentBatch = useCallback(
+    (continent: Continent | 'All', avoidFirstCode?: string): QuizQuestion[] => {
+      const pool = COUNTRIES.filter((c) => continent === 'All' || c.continent === continent);
+      const shuffled = shuffleArray(pool);
+      if (avoidFirstCode && shuffled.length > 1 && shuffled[0].code === avoidFirstCode) {
+        [shuffled[0], shuffled[1]] = [shuffled[1], shuffled[0]];
+      }
+      const distractorPool = pool.length >= 4 ? pool : COUNTRIES;
+      return shuffled.map((c) => createQuestion(c, distractorPool));
+    },
+    [createQuestion]
+  );
+
   // Start standard game flow (Classic / 60s Blitz / Survival)
   const startGame = useCallback(
     (mode: GameMode, continent: Continent | 'All', specificCountry?: Country) => {
       sound.playClick();
+      gameOverTriggeredRef.current = false;
       setCurrentMode(mode);
       setCurrentContinent(continent);
       setIsNewHighScore(false);
-      setInspectedCountry(null);
+      setHasRevivedInRun(false);
+      setActiveAtlasCountry(null);
 
       const pool = COUNTRIES.filter((c) => continent === 'All' || c.continent === continent);
       const shuffled = shuffleArray(pool);
@@ -226,10 +246,12 @@ export default function App() {
   // Start Today's 5-Flag Daily Challenge
   const startDailyChallenge = useCallback(() => {
     sound.playClick();
+    gameOverTriggeredRef.current = false;
     setCurrentMode('daily');
     setCurrentContinent('All');
     setIsNewHighScore(false);
-    setInspectedCountry(null);
+    setHasRevivedInRun(false);
+    setActiveAtlasCountry(null);
 
     const dailyCountries = getDailyCountries(COUNTRIES);
     const generatedQuestions = dailyCountries.map((c) => createQuestion(c, COUNTRIES));
@@ -247,10 +269,12 @@ export default function App() {
     (missedCountries: Country[]) => {
       if (missedCountries.length === 0) return;
       sound.playClick();
+      gameOverTriggeredRef.current = false;
       setCurrentMode('mistakes');
       setCurrentContinent('All');
       setIsNewHighScore(false);
-      setInspectedCountry(null);
+      setHasRevivedInRun(false);
+      setActiveAtlasCountry(null);
       setLastMissedPool(missedCountries);
 
       const shuffled = shuffleArray(missedCountries);
@@ -276,9 +300,15 @@ export default function App() {
     }
   }, [currentMode, currentContinent, lastMissedPool, startDailyChallenge, startMistakesPractice, startGame]);
 
-  // Handle Game Over / Round Summary
+  // Handle Game Over / Round Summary (idempotent per round)
   const handleGameOver = useCallback(() => {
-    if (blitzTimerRef.current) clearInterval(blitzTimerRef.current);
+    if (gameOverTriggeredRef.current) return;
+    gameOverTriggeredRef.current = true;
+
+    if (blitzTimerRef.current) {
+      clearInterval(blitzTimerRef.current);
+      blitzTimerRef.current = null;
+    }
 
     const currentStats = statsRef.current;
     const learned = currentStats.history.filter((h) => h.isCorrect).map((h) => h.country.code);
@@ -301,30 +331,38 @@ export default function App() {
     }, 150);
   }, [currentMode, updateHighScores]);
 
-  // Blitz mode countdown timer
+  // Blitz mode countdown timer (pure state decrement; completion handled in separate effect)
   useEffect(() => {
     if (appState === 'PLAYING' && currentMode === 'blitz') {
       blitzTimerRef.current = setInterval(() => {
         setStats((prev) => {
-          if (prev.timeRemaining === undefined || prev.timeRemaining <= 1) {
-            clearInterval(blitzTimerRef.current!);
-            handleGameOver();
-            return { ...prev, timeRemaining: 0 };
+          const currentLeft = prev.timeRemaining ?? 0;
+          if (currentLeft <= 0) {
+            return prev;
           }
-
-          if (prev.timeRemaining <= 10) {
+          const nextLeft = currentLeft - 1;
+          if (nextLeft > 0 && nextLeft <= 10) {
             sound.playTick(true);
           }
-
-          return { ...prev, timeRemaining: prev.timeRemaining - 1 };
+          return { ...prev, timeRemaining: nextLeft };
         });
       }, 1000);
 
       return () => {
-        if (blitzTimerRef.current) clearInterval(blitzTimerRef.current);
+        if (blitzTimerRef.current) {
+          clearInterval(blitzTimerRef.current);
+          blitzTimerRef.current = null;
+        }
       };
     }
-  }, [appState, currentMode, handleGameOver]);
+  }, [appState, currentMode]);
+
+  // End Blitz cleanly once countdown reaches 0
+  useEffect(() => {
+    if (appState === 'PLAYING' && currentMode === 'blitz' && stats.timeRemaining === 0) {
+      handleGameOver();
+    }
+  }, [appState, currentMode, stats.timeRemaining, handleGameOver]);
 
   // Handle user's answer selection
   const handleAnswer = useCallback(
@@ -398,10 +436,21 @@ export default function App() {
 
   // Advance to next question
   const handleNextQuestion = useCallback(() => {
+    if (gameOverTriggeredRef.current) return;
     sound.playClick();
 
-    if (currentMode === 'survival' && stats.livesRemaining !== undefined && stats.livesRemaining <= 0) {
+    if (currentMode === 'survival' && statsRef.current.livesRemaining !== undefined && statsRef.current.livesRemaining <= 0) {
       handleGameOver();
+      return;
+    }
+
+    // In 60s Blitz, seamlessly reshuffle and append a new batch if a small continent (e.g., Oceania) is exhausted
+    if (currentMode === 'blitz' && currentQuestionIndex + 1 >= questions.length) {
+      const lastCode = questions[currentQuestionIndex]?.country.code;
+      const nextBatch = buildContinentBatch(currentContinent, lastCode);
+      setQuestions((prev) => [...prev, ...nextBatch]);
+      setCurrentQuestionIndex((prev) => prev + 1);
+      questionStartTimeRef.current = Date.now();
       return;
     }
 
@@ -412,7 +461,7 @@ export default function App() {
 
     setCurrentQuestionIndex((prev) => prev + 1);
     questionStartTimeRef.current = Date.now();
-  }, [currentMode, currentQuestionIndex, totalRoundQuestions, stats.livesRemaining, handleGameOver]);
+  }, [currentMode, currentContinent, currentQuestionIndex, questions, totalRoundQuestions, buildContinentBatch, handleGameOver]);
 
   // Pause toggle
   const togglePause = useCallback(() => {
@@ -435,11 +484,17 @@ export default function App() {
       }
 
       setAppState((current) => {
+        if (current === 'ATLAS' && activeAtlasCountryRef.current) {
+          sound.playClick();
+          setActiveAtlasCountry(null);
+          return 'ATLAS';
+        }
         if (current === 'PLAYING') {
           sound.playClick();
           return 'PAUSED';
         } else if (current === 'PAUSED' || current === 'ROUND_SUMMARY' || current === 'ATLAS') {
           sound.playClick();
+          setActiveAtlasCountry(null);
           return 'TITLE_MENU';
         } else if (current === 'TITLE_MENU') {
           CapacitorApp.exitApp();
@@ -458,32 +513,48 @@ export default function App() {
     void adManager.initialize();
   }, []);
 
-  // Show bottom banner ad on Title Screen & Flag Atlas; hide during active gameplay & modals
+  // Show bottom banner ad on Title Screen & Flag Atlas (when no modal/dossier is open)
   useEffect(() => {
-    if ((appState === 'TITLE_MENU' || appState === 'ATLAS') && !showSettings) {
+    const shouldShowBanner =
+      !showSettings &&
+      (appState === 'TITLE_MENU' || (appState === 'ATLAS' && !activeAtlasCountry));
+
+    if (shouldShowBanner) {
       void adManager.showBanner();
     } else {
       void adManager.hideBanner();
     }
-  }, [appState, showSettings]);
+  }, [appState, showSettings, activeAtlasCountry]);
 
-  // Handle Revive via Rewarded Video Ad (Survival Mode)
+  // Handle Revive via Rewarded Video Ad (Survival Mode — max 1 revive per run)
   const handleReviveSurvival = useCallback(async (): Promise<boolean> => {
+    if (hasRevivedInRun) return false;
     const earnedReward = await adManager.showRewardedAd();
     if (earnedReward) {
       sound.playStreakFanfare();
+      gameOverTriggeredRef.current = false;
+      setHasRevivedInRun(true);
       setStats((prev) => ({
         ...prev,
         livesRemaining: 1,
       }));
+
       if (currentQuestionIndex + 1 < questions.length) {
         setCurrentQuestionIndex((prev) => prev + 1);
+      } else {
+        // Player lost last life on the final flag of a continent — append a fresh unseen batch
+        const lastCode = questions[currentQuestionIndex]?.country.code;
+        const freshBatch = buildContinentBatch(currentContinent, lastCode);
+        setQuestions((prev) => [...prev, ...freshBatch]);
+        setCurrentQuestionIndex((prev) => prev + 1);
       }
+
+      questionStartTimeRef.current = Date.now();
       setAppState('PLAYING');
       return true;
     }
     return false;
-  }, [currentQuestionIndex, questions.length]);
+  }, [hasRevivedInRun, currentQuestionIndex, questions, currentContinent, buildContinentBatch]);
 
   const handleToggleMute = () => {
     const nextMuted = sound.toggleMute();
@@ -532,6 +603,7 @@ export default function App() {
           highScores={highScores}
           isMuted={isMuted}
           onToggleMute={handleToggleMute}
+          isModalOpen={showSettings}
         />
       )}
 
@@ -559,8 +631,9 @@ export default function App() {
               onNext={handleNextQuestion}
               isBlitz={currentMode === 'blitz'}
               isFinalStep={
-                (currentMode === 'survival' && (stats.livesRemaining ?? 3) <= 0) ||
-                currentQuestionIndex + 1 >= totalRoundQuestions
+                currentMode !== 'blitz' &&
+                ((currentMode === 'survival' && (stats.livesRemaining ?? 3) <= 0) ||
+                  currentQuestionIndex + 1 >= totalRoundQuestions)
               }
             />
           </div>
@@ -598,10 +671,15 @@ export default function App() {
             setAppState('TITLE_MENU');
           }}
           onInspectCountry={(country) => {
-            setInspectedCountry(country);
+            setActiveAtlasCountry(country);
             setAppState('ATLAS');
           }}
           onPracticeMissed={startMistakesPractice}
+          canRevive={
+            currentMode === 'survival' &&
+            !hasRevivedInRun &&
+            (stats.livesRemaining ?? 0) <= 0
+          }
           onRevive={handleReviveSurvival}
         />
       )}
@@ -611,16 +689,16 @@ export default function App() {
         <StudyAtlas
           onBack={() => {
             sound.playClick();
-            setInspectedCountry(null);
+            setActiveAtlasCountry(null);
             setAppState('TITLE_MENU');
           }}
           onPracticeCountry={(country) => {
-            setInspectedCountry(null);
+            setActiveAtlasCountry(null);
             startGame('classic', 'All', country);
           }}
           learnedCodes={highScores.flagsLearned}
-          initialCountry={inspectedCountry}
-          onClearInitialCountry={() => setInspectedCountry(null)}
+          activeCountry={activeAtlasCountry}
+          onSelectCountry={setActiveAtlasCountry}
         />
       )}
 

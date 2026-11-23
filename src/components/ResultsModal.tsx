@@ -28,6 +28,7 @@ interface ResultsModalProps {
   onQuitToMenu: () => void;
   onInspectCountry: (country: Country) => void;
   onPracticeMissed?: (missedCountries: Country[]) => void;
+  canRevive?: boolean;
   onRevive?: () => Promise<boolean>;
 }
 
@@ -40,10 +41,10 @@ export const ResultsModal: React.FC<ResultsModalProps> = ({
   onQuitToMenu,
   onInspectCountry,
   onPracticeMissed,
+  canRevive = false,
   onRevive,
 }) => {
   const [isWatchingAd, setIsWatchingAd] = useState(false);
-  const [hasRevived, setHasRevived] = useState(false);
   const [shareFeedback, setShareFeedback] = useState<'idle' | 'copied' | 'shared'>('idle');
 
   const accuracy = stats.totalAnswered > 0 ? Math.round((stats.correctCount / stats.totalAnswered) * 100) : 0;
@@ -241,15 +242,14 @@ export const ResultsModal: React.FC<ResultsModalProps> = ({
           </div>
         </div>
 
-        {/* Rewarded Ad Revive Option (Survival Mode) */}
-        {mode === 'survival' && onRevive && !hasRevived && (
+        {/* Rewarded Ad Revive Option (Survival Mode — max 1 revive per run) */}
+        {mode === 'survival' && canRevive && onRevive && (
           <button
             onClick={async () => {
               if (isWatchingAd) return;
               setIsWatchingAd(true);
               try {
-                const ok = await onRevive();
-                if (ok) setHasRevived(true);
+                await onRevive();
               } finally {
                 setIsWatchingAd(false);
               }

@@ -41,6 +41,8 @@ export const AD_CONFIG = IS_PRODUCTION_ADS ? LIVE_AD_IDS : TEST_AD_IDS;
 let isInitialized = false;
 let isConsentChecked = false;
 let isBannerShown = false;
+let isBannerLoading = false;
+let desiredBannerVisible = false;
 let isInterstitialReady = false;
 let isPreloadingInterstitial = false;
 let isRewardedReady = false;
@@ -150,13 +152,21 @@ export const adManager = {
   },
 
   /**
-   * Shows an adaptive bottom banner ad (used on Title Screen & Flag Atlas)
+   * Shows an adaptive bottom banner ad (used on Title Screen & Flag Atlas).
+   * Re-checks desiredBannerVisible after async steps so a fast screen transition
+   * never leaves a banner overlaying active gameplay or modals.
    */
   async showBanner(): Promise<void> {
-    if (!Capacitor.isNativePlatform() || isBannerShown) return;
+    desiredBannerVisible = true;
+    if (!Capacitor.isNativePlatform() || isBannerShown || isBannerLoading) return;
 
+    isBannerLoading = true;
     try {
       await this.initialize();
+      if (!desiredBannerVisible) {
+        return;
+      }
+
       const options: BannerAdOptions = {
         adId: AD_CONFIG.bannerAdId,
         adSize: BannerAdSize.ADAPTIVE_BANNER,
@@ -165,9 +175,21 @@ export const adManager = {
         isTesting: !IS_PRODUCTION_ADS,
       };
       await AdMob.showBanner(options);
-      isBannerShown = true;
+
+      if (!desiredBannerVisible) {
+        try {
+          await AdMob.hideBanner();
+        } catch {
+          // Ignore
+        }
+        isBannerShown = false;
+      } else {
+        isBannerShown = true;
+      }
     } catch {
       isBannerShown = false;
+    } finally {
+      isBannerLoading = false;
     }
   },
 
@@ -175,6 +197,7 @@ export const adManager = {
    * Hides the bottom banner ad (used during active gameplay & modals)
    */
   async hideBanner(): Promise<void> {
+    desiredBannerVisible = false;
     if (!Capacitor.isNativePlatform() || !isBannerShown) return;
 
     try {

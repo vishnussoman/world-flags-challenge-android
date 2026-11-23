@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { CheckCircle2, XCircle, ArrowRight, Sparkles } from 'lucide-react';
 import { QuizQuestion, Country } from '../types/flags';
 import { FlagSvg } from './FlagSvg';
@@ -22,34 +22,62 @@ export const QuizPlayfield: React.FC<QuizPlayfieldProps> = ({
   const [hasAnswered, setHasAnswered] = useState<boolean>(false);
   const [isShaking, setIsShaking] = useState<boolean>(false);
 
-  // Reset state when new question appears
+  const blitzAdvanceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const shakeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const onNextRef = useRef(onNext);
+  onNextRef.current = onNext;
+
+  const clearTimers = useCallback(() => {
+    if (blitzAdvanceTimerRef.current) {
+      clearTimeout(blitzAdvanceTimerRef.current);
+      blitzAdvanceTimerRef.current = null;
+    }
+    if (shakeTimerRef.current) {
+      clearTimeout(shakeTimerRef.current);
+      shakeTimerRef.current = null;
+    }
+  }, []);
+
+  // Reset state and cancel pending timers when new question appears or component unmounts
   useEffect(() => {
+    clearTimers();
     setSelectedOption(null);
     setHasAnswered(false);
     setIsShaking(false);
-  }, [question.id]);
 
-  const handleSelect = (option: Country) => {
-    if (hasAnswered) return;
+    return () => {
+      clearTimers();
+    };
+  }, [question.id, clearTimers]);
 
-    setSelectedOption(option);
-    setHasAnswered(true);
+  const handleSelect = useCallback(
+    (option: Country) => {
+      if (hasAnswered) return;
 
-    const isCorrect = option.code === question.country.code;
-    if (!isCorrect) {
-      setIsShaking(true);
-      setTimeout(() => setIsShaking(false), 350);
-    }
+      setSelectedOption(option);
+      setHasAnswered(true);
 
-    onAnswer(option);
+      const isCorrect = option.code === question.country.code;
+      if (!isCorrect) {
+        setIsShaking(true);
+        shakeTimerRef.current = setTimeout(() => {
+          shakeTimerRef.current = null;
+          setIsShaking(false);
+        }, 350);
+      }
 
-    // If Blitz mode, auto advance rapidly so user can blitz through
-    if (isBlitz) {
-      setTimeout(() => {
-        onNext();
-      }, 700);
-    }
-  };
+      onAnswer(option);
+
+      // If Blitz mode, auto advance rapidly (cleared automatically on pause/game-over/unmount)
+      if (isBlitz) {
+        blitzAdvanceTimerRef.current = setTimeout(() => {
+          blitzAdvanceTimerRef.current = null;
+          onNextRef.current();
+        }, 700);
+      }
+    },
+    [hasAnswered, question.country.code, onAnswer, isBlitz]
+  );
 
   // Keyboard navigation on desktop
   useEffect(() => {
@@ -59,15 +87,15 @@ export const QuizPlayfield: React.FC<QuizPlayfieldProps> = ({
         if (e.key === '2' && question.options[1]) handleSelect(question.options[1]);
         if (e.key === '3' && question.options[2]) handleSelect(question.options[2]);
         if (e.key === '4' && question.options[3]) handleSelect(question.options[3]);
-      } else if (e.code === 'Space' || e.key === 'Enter') {
+      } else if (!isBlitz && (e.code === 'Space' || e.key === 'Enter')) {
         e.preventDefault();
-        onNext();
+        onNextRef.current();
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [hasAnswered, question.options, onNext]);
+  }, [hasAnswered, isBlitz, question.options, handleSelect]);
 
   return (
     <div className={`w-full max-w-2xl mx-auto px-4 flex flex-col items-center ${isShaking ? 'animate-shake' : ''}`}>
@@ -79,7 +107,12 @@ export const QuizPlayfield: React.FC<QuizPlayfieldProps> = ({
       {/* Flag Showcase Centerpiece */}
       <div className="relative mb-4 sm:mb-6">
         <div className="w-52 h-34 sm:w-64 sm:h-42 md:w-72 md:h-48 rounded-2xl overflow-hidden shadow-2xl">
-          <FlagSvg code={question.country.code} className="w-full h-full object-cover" />
+          <FlagSvg
+            code={question.country.code}
+            title={question.country.name}
+            hideLabel={!hasAnswered}
+            className="w-full h-full object-cover"
+          />
         </div>
       </div>
 
